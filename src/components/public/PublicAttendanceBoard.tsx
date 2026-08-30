@@ -157,15 +157,16 @@ export default function PublicAttendanceBoard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 z-20 w-[90px] bg-background">Class</TableHead>
-                  <TableHead className="sticky left-[90px] z-20 w-[220px] bg-background">Name</TableHead>
-                  <TableHead className="sticky left-[310px] z-20 w-[110px] bg-background">ERP</TableHead>
-                  <TableHead className="w-[110px] text-center">Naming Penalty</TableHead>
-                  <TableHead className="w-[100px] text-center">Absences</TableHead>
+                  <TableHead className="sticky left-0 top-0 z-30 w-[60px] bg-background text-center">#</TableHead>
+                  <TableHead className="sticky left-[60px] top-0 z-30 w-[90px] bg-background">Class</TableHead>
+                  <TableHead className="sticky left-[150px] top-0 z-30 w-[220px] bg-background">Name</TableHead>
+                  <TableHead className="sticky left-[370px] top-0 z-30 w-[110px] bg-background">ERP</TableHead>
+                  <TableHead className="sticky top-0 z-20 w-[110px] bg-background text-center">Naming Penalty</TableHead>
+                  <TableHead className="sticky top-0 z-20 w-[100px] bg-background text-center">Absences</TableHead>
                   {sessions.map((session) => (
                     <TableHead
                       key={session.id}
-                      className="w-[70px] text-center"
+                      className="sticky top-0 z-20 w-[70px] bg-background text-center"
                       title={formatSessionHint(session)}
                     >
                       S{session.session_number}
@@ -177,16 +178,17 @@ export default function PublicAttendanceBoard() {
               <TableBody>
                 {filteredStudents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5 + sessions.length} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={6 + sessions.length} className="py-10 text-center text-muted-foreground">
                       No students match your search.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStudents.map((student) => (
+                  filteredStudents.map((student, index) => (
                     <TableRow key={student.erp}>
-                      <TableCell className="sticky left-0 z-10 bg-background font-medium">{student.class_no}</TableCell>
-                      <TableCell className="sticky left-[90px] z-10 bg-background">{student.student_name}</TableCell>
-                      <TableCell className="sticky left-[310px] z-10 bg-background font-mono text-xs">{student.erp}</TableCell>
+                      <TableCell className="sticky left-0 z-10 bg-background text-center text-muted-foreground">{index + 1}</TableCell>
+                      <TableCell className="sticky left-[60px] z-10 bg-background font-medium">{student.class_no}</TableCell>
+                      <TableCell className="sticky left-[150px] z-10 bg-background">{student.student_name}</TableCell>
+                      <TableCell className="sticky left-[370px] z-10 bg-background font-mono text-xs">{student.erp}</TableCell>
                       <TableCell
                         className={`text-center font-semibold ${
                           student.total_penalties > 0 ? 'text-destructive' : 'text-muted-foreground'
