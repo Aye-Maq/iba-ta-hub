@@ -155,8 +155,8 @@ export default function PublicAttendanceBoard() {
         ) : (
           <div className="rounded-md border max-h-[70vh] overflow-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
+              <TableHeader className="sticky top-0 z-30 bg-background shadow-sm">
+                <TableRow className="bg-background">
                   <TableHead className="sticky left-0 top-0 z-30 w-[60px] bg-background text-center">#</TableHead>
                   <TableHead className="sticky left-[60px] top-0 z-30 w-[90px] bg-background">Class</TableHead>
                   <TableHead className="sticky left-[150px] top-0 z-30 w-[220px] bg-background">Name</TableHead>
