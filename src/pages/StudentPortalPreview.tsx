@@ -95,9 +95,9 @@ const navItems: Array<{
 ];
 
 const surface =
-  "border-slate-200/80 bg-white dark:border-white/[0.09] dark:bg-[#11151c]";
+  "border-slate-200/80 bg-white dark:border-white/[0.1] dark:bg-[#111111]";
 const softSurface =
-  "border-slate-200/70 bg-slate-50/80 dark:border-white/[0.08] dark:bg-white/[0.035]";
+  "border-slate-200/70 bg-slate-50/80 dark:border-white/[0.08] dark:bg-[#080808]";
 
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
@@ -158,7 +158,7 @@ function PreviewSwitcher({
   onNavigate: (screen: PreviewScreen) => void;
 }) {
   return (
-    <div className="border-b border-slate-200/80 bg-white px-4 py-2.5 dark:border-white/[0.08] dark:bg-[#0d1117] sm:px-6">
+    <div className="border-b border-slate-200/80 bg-white px-4 py-2 dark:border-white/[0.08] dark:bg-black sm:px-6">
       <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
           <span className="hidden h-2 w-2 rounded-full bg-emerald-500 sm:block" />
@@ -341,7 +341,7 @@ export default function StudentPortalPreview() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] text-slate-900 transition-colors dark:bg-[#090c11] dark:text-slate-100">
+    <div className="min-h-screen bg-[#f5f7fa] text-slate-900 transition-colors dark:bg-black dark:text-slate-100">
       {screen !== "dashboard" && (
         <PreviewSwitcher screen={screen} onNavigate={navigate} />
       )}
@@ -418,13 +418,13 @@ function PublicPreview({ onLogin }: { onLogin: () => void }) {
   }, [query]);
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200/80 bg-white dark:border-white/[0.08] dark:bg-[#0d1117]">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-5 px-4 py-6 sm:px-8">
+      <header className="border-b border-slate-200/80 bg-white dark:border-white/[0.08] dark:bg-black">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-5 px-4 py-5 sm:px-8 sm:py-6">
           <div>
             <div className="mb-4">
               <Brand />
             </div>
-            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white">
+            <h1 className="text-2xl font-semibold tracking-[-0.04em] text-slate-950 dark:text-white sm:text-3xl">
               Attendance
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -462,18 +462,17 @@ function PublicPreview({ onLogin }: { onLogin: () => void }) {
               <span className="font-semibold text-slate-900 dark:text-slate-100">
                 Legend
               </span>
-              <span>
-                <b className="text-emerald-600 dark:text-emerald-400">P</b>{" "}
-                Present
+              <span className="inline-flex items-center gap-1.5">
+                <AttendanceDot status="present" /> Present
               </span>
-              <span>
-                <b className="text-red-600 dark:text-red-400">A</b> Absent
+              <span className="inline-flex items-center gap-1.5">
+                <AttendanceDot status="absent" /> Absent
               </span>
-              <span>
-                <b className="text-amber-600 dark:text-amber-400">E</b> Excused
+              <span className="inline-flex items-center gap-1.5">
+                <AttendanceDot status="excused" /> Excused
               </span>
-              <span>
-                <b className="text-slate-700 dark:text-slate-300">—</b> Pending
+              <span className="inline-flex items-center gap-1.5">
+                <AttendanceDot status="pending" /> Pending
               </span>
               <span className="basis-full">
                 Naming penalties appear in their own column.
@@ -583,29 +582,59 @@ function BoardMessage({
   );
 }
 
+const attendanceStatusMeta: Record<
+  StudentStatus,
+  { label: string; dot: string }
+> = {
+  present: {
+    label: "Present",
+    dot: "bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.45)]",
+  },
+  absent: {
+    label: "Absent",
+    dot: "bg-red-400 shadow-[0_0_7px_rgba(248,113,113,0.35)]",
+  },
+  excused: {
+    label: "Excused",
+    dot: "bg-amber-300 shadow-[0_0_7px_rgba(252,211,77,0.3)]",
+  },
+  pending: { label: "Pending", dot: "bg-slate-500" },
+};
+
+function AttendanceDot({ status }: { status: StudentStatus }) {
+  const meta = attendanceStatusMeta[status];
+  return (
+    <span
+      role="img"
+      aria-label={meta.label}
+      title={meta.label}
+      className="inline-flex h-5 w-5 items-center justify-center"
+    >
+      <span
+        aria-hidden="true"
+        className={cn("h-2.5 w-2.5 rounded-full", meta.dot)}
+      />
+      <span className="sr-only">{meta.label}</span>
+    </span>
+  );
+}
+
 function AttendanceTable({ students }: { students: PreviewStudent[] }) {
-  const getStatus = (value: StudentStatus) =>
-    ({
-      present: ["P", "text-emerald-600 dark:text-emerald-400"],
-      absent: ["A", "text-red-600 dark:text-red-400"],
-      excused: ["E", "text-amber-600 dark:text-amber-400"],
-      pending: ["—", "text-slate-400"],
-    })[value];
   return (
     <div className="max-h-[min(64vh,620px)] overflow-auto">
       <table className="min-w-[1072px] w-full border-separate border-spacing-0 text-sm">
         <thead className="sticky top-0 z-20">
-          <tr className="bg-white text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:bg-[#11151c] dark:text-slate-400">
-            <th className="sticky left-0 z-30 w-12 border-b border-slate-200 px-4 py-3 text-center dark:border-white/[0.08] dark:bg-[#11151c]">
+          <tr className="bg-white text-left text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:bg-[#111111] dark:text-slate-400">
+            <th className="sticky left-0 z-30 w-12 border-b border-slate-200 px-4 py-3 text-center dark:border-white/[0.08] dark:bg-[#111111]">
               #
             </th>
-            <th className="sticky left-12 z-30 w-24 border-b border-slate-200 px-3 py-3 dark:border-white/[0.08] dark:bg-[#11151c]">
+            <th className="sticky left-12 z-30 w-24 border-b border-slate-200 px-3 py-3 dark:border-white/[0.08] dark:bg-[#111111]">
               Class
             </th>
-            <th className="sticky left-[144px] z-30 w-56 border-b border-slate-200 px-3 py-3 dark:border-white/[0.08] dark:bg-[#11151c]">
+            <th className="sticky left-[144px] z-30 w-56 border-b border-slate-200 px-3 py-3 dark:border-white/[0.08] dark:bg-[#111111]">
               Student
             </th>
-            <th className="sticky left-[368px] z-30 w-28 border-b border-slate-200 px-3 py-3 dark:border-white/[0.08] dark:bg-[#11151c]">
+            <th className="sticky left-[368px] z-30 w-28 border-b border-slate-200 px-3 py-3 dark:border-white/[0.08] dark:bg-[#111111]">
               ERP
             </th>
             <th className="w-28 border-b border-slate-200 px-3 py-3 text-center dark:border-white/[0.08]">
@@ -642,19 +671,19 @@ function AttendanceTable({ students }: { students: PreviewStudent[] }) {
               ).length;
               return (
                 <tr key={student.erp} className="group">
-                  <td className="sticky left-0 z-10 border-b border-slate-100 bg-white px-4 py-2.5 text-center text-xs text-slate-400 group-hover:bg-slate-50 dark:border-white/[0.05] dark:bg-[#11151c] dark:group-hover:bg-[#171c24]">
+                  <td className="sticky left-0 z-10 border-b border-slate-100 bg-white px-4 py-2.5 text-center text-xs text-slate-400 group-hover:bg-slate-50 dark:border-white/[0.05] dark:bg-[#111111] dark:group-hover:bg-[#191919]">
                     {index + 1}
                   </td>
-                  <td className="sticky left-12 z-10 border-b border-slate-100 bg-white px-3 py-2.5 font-medium dark:border-white/[0.05] dark:bg-[#11151c] dark:group-hover:bg-[#171c24]">
+                  <td className="sticky left-12 z-10 border-b border-slate-100 bg-white px-3 py-2.5 font-medium dark:border-white/[0.05] dark:bg-[#111111] dark:group-hover:bg-[#191919]">
                     {student.classNo}
                   </td>
                   <td
-                    className="sticky left-[144px] z-10 max-w-56 truncate border-b border-slate-100 bg-white px-3 py-2.5 font-medium dark:border-white/[0.05] dark:bg-[#11151c] dark:group-hover:bg-[#171c24]"
+                    className="sticky left-[144px] z-10 max-w-56 truncate border-b border-slate-100 bg-white px-3 py-2.5 font-medium dark:border-white/[0.05] dark:bg-[#111111] dark:group-hover:bg-[#191919]"
                     title={student.name}
                   >
                     {student.name}
                   </td>
-                  <td className="sticky left-[368px] z-10 border-b border-slate-100 bg-white px-3 py-2.5 font-mono text-xs dark:border-white/[0.05] dark:bg-[#11151c] dark:group-hover:bg-[#171c24]">
+                  <td className="sticky left-[368px] z-10 border-b border-slate-100 bg-white px-3 py-2.5 font-mono text-xs dark:border-white/[0.05] dark:bg-[#111111] dark:group-hover:bg-[#191919]">
                     {student.erp}
                   </td>
                   <td
@@ -678,16 +707,12 @@ function AttendanceTable({ students }: { students: PreviewStudent[] }) {
                     {absences || "—"}
                   </td>
                   {student.statuses.map((value, statusIndex) => {
-                    const [label, className] = getStatus(value);
                     return (
                       <td
                         key={`${student.erp}-${statusIndex}`}
-                        className={cn(
-                          "border-b border-slate-100 px-3 py-2.5 text-center font-semibold dark:border-white/[0.05]",
-                          className,
-                        )}
+                        className="border-b border-slate-100 px-3 py-2.5 text-center dark:border-white/[0.05]"
                       >
-                        {label}
+                        <AttendanceDot status={value} />
                       </td>
                     );
                   })}
@@ -733,130 +758,155 @@ function LoginPreview({
     }, 650);
   };
   return (
-    <div className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4 py-10">
-      <Card className={cn(surface, "w-full max-w-md shadow-sm")}>
-        <CardHeader className="space-y-5 p-6 sm:p-8">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-950 dark:hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to attendance
-          </button>
+    <div className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4 py-8 sm:px-6">
+      <Card
+        className={cn(
+          surface,
+          "w-full max-w-4xl overflow-hidden shadow-sm lg:grid lg:grid-cols-[0.9fr_1.1fr]",
+        )}
+      >
+        <div className="hidden flex-col justify-between border-r border-primary/20 bg-[#07111f] p-8 text-white lg:flex">
           <div>
-            <CardTitle className="text-2xl">Log in</CardTitle>
-            <CardDescription className="mt-2">
-              Use your course account to open the student or TA portal.
-            </CardDescription>
-          </div>
-          <div
-            className="grid grid-cols-2 rounded-md bg-slate-100 p-1 dark:bg-white/[0.06]"
-            role="tablist"
-            aria-label="Account type"
-          >
-            {(["student", "ta"] as const).map((item) => (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === item}
-                key={item}
-                onClick={() => {
-                  setMode(item);
-                  setError("");
-                  setPassword("");
-                }}
-                className={cn(
-                  "rounded px-3 py-2 text-sm font-semibold capitalize",
-                  mode === item
-                    ? "bg-white text-slate-950 shadow-sm dark:bg-white/10 dark:text-white"
-                    : "text-slate-500 dark:text-slate-400",
-                )}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 pt-0 sm:p-8 sm:pt-0">
-          {error && (
-            <div className="mb-5 flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              {error}
+            <Brand />
+            <div className="mt-20 max-w-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-300">
+                AAMD · Fall 2026
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
+                Student portal
+              </h2>
+              <p className="mt-4 text-sm leading-6 text-blue-100/75">
+                Check attendance and grades, manage your group, and use late
+                days when you need them.
+              </p>
             </div>
-          )}
-          <form onSubmit={submit} className="space-y-5">
-            <div className="space-y-2">
-              <label htmlFor="preview-email" className="text-sm font-medium">
-                {mode === "student" ? "IBA email or demo ERP" : "TA email"}
-              </label>
-              <Input
-                id="preview-email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder={
-                  mode === "student"
-                    ? "name.12345@khi.iba.edu.pk"
-                    : "ta@khi.iba.edu.pk"
-                }
-                autoComplete="username"
-                className="h-10 rounded-md"
-              />
+          </div>
+          <p className="text-xs text-blue-100/55">AAMD · Fall 2026</p>
+        </div>
+        <div className="min-w-0">
+          <CardHeader className="space-y-4 p-5 sm:p-7">
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex w-fit items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-950 dark:hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to attendance
+            </button>
+            <div>
+              <CardTitle className="text-2xl">Log in</CardTitle>
+              <CardDescription className="mt-1">
+                Use the same login for the student or TA portal.
+              </CardDescription>
             </div>
-            {mode === "ta" && (
-              <div className="space-y-2">
-                <label
-                  htmlFor="preview-password"
-                  className="text-sm font-medium"
+            <div
+              className="grid grid-cols-2 rounded-md bg-slate-100 p-1 dark:bg-white/[0.06]"
+              role="tablist"
+              aria-label="Account type"
+            >
+              {(["student", "ta"] as const).map((item) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === item}
+                  key={item}
+                  onClick={() => {
+                    setMode(item);
+                    setError("");
+                    setPassword("");
+                  }}
+                  className={cn(
+                    "rounded px-3 py-2 text-sm font-semibold capitalize",
+                    mode === item
+                      ? "bg-white text-slate-950 shadow-sm dark:bg-white/10 dark:text-white"
+                      : "text-slate-500 dark:text-slate-400",
+                  )}
                 >
-                  Password
-                </label>
-                <div className="relative">
-                  <Input
-                    id="preview-password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    autoComplete="current-password"
-                    className="h-10 rounded-md pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
+                  {item}
+                </button>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent className="p-5 pt-0 sm:p-7 sm:pt-0">
+            {error && (
+              <div className="mb-5 flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {error}
               </div>
             )}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="h-10 w-full rounded-md"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <LogIn className="h-4 w-4" />
+            <form onSubmit={submit} className="space-y-5">
+              <div className="space-y-2">
+                <label htmlFor="preview-email" className="text-sm font-medium">
+                  {mode === "student" ? "IBA email or demo ERP" : "TA email"}
+                </label>
+                <Input
+                  id="preview-email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder={
+                    mode === "student"
+                      ? "name.12345@khi.iba.edu.pk"
+                      : "ta@khi.iba.edu.pk"
+                  }
+                  autoComplete="username"
+                  className="h-10 rounded-md"
+                />
+              </div>
+              {mode === "ta" && (
+                <div className="space-y-2">
+                  <label
+                    htmlFor="preview-password"
+                    className="text-sm font-medium"
+                  >
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="preview-password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      autoComplete="current-password"
+                      className="h-10 rounded-md pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
               )}
-              {loading ? "Logging in…" : "Log in"}
-            </Button>
-          </form>
-          <p className="mt-6 text-xs text-slate-500 dark:text-slate-400">
-            For preview: enter{" "}
-            <code className="rounded bg-slate-100 px-1 py-0.5 font-mono dark:bg-white/10">
-              00000
-            </code>
-            .
-          </p>
-        </CardContent>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="h-10 w-full rounded-md"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogIn className="h-4 w-4" />
+                )}
+                {loading ? "Logging in…" : "Log in"}
+              </Button>
+            </form>
+            <p className="mt-6 text-xs text-slate-500 dark:text-slate-400">
+              For preview: enter{" "}
+              <code className="rounded bg-slate-100 px-1 py-0.5 font-mono dark:bg-white/10">
+                00000
+              </code>
+              .
+            </p>
+          </CardContent>
+        </div>
       </Card>
     </div>
   );
@@ -899,7 +949,7 @@ function DashboardPreview({
 }) {
   return (
     <div className="min-h-screen pb-20 lg:pb-0">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[236px] border-r border-slate-200/80 bg-white dark:border-white/[0.08] dark:bg-[#0d1117] lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[236px] border-r border-slate-200/80 bg-white dark:border-white/[0.08] dark:bg-black lg:flex lg:flex-col">
         <div className="flex h-[78px] items-center px-5">
           <Brand compact />
         </div>
@@ -927,7 +977,7 @@ function DashboardPreview({
         </div>
       </aside>
       <div className="lg:pl-[236px]">
-        <header className="sticky top-0 z-30 flex h-[70px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur dark:border-white/[0.08] dark:bg-[#0d1117]/95 sm:px-8">
+        <header className="sticky top-0 z-30 flex h-[66px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur dark:border-white/[0.08] dark:bg-black/95 sm:px-8">
           <div className="flex items-center gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
@@ -987,7 +1037,7 @@ function DashboardPreview({
         </main>
       </div>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-slate-200/80 bg-white/95 px-1 py-1 backdrop-blur dark:border-white/[0.08] dark:bg-[#0d1117]/95 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-slate-200/80 bg-white/95 px-1 py-1 backdrop-blur dark:border-white/[0.08] dark:bg-black/95 lg:hidden"
         aria-label="Student portal navigation"
       >
         {navItems.map(({ id, label, icon: Icon }) => (
@@ -1007,8 +1057,8 @@ function DashboardPreview({
           </button>
         ))}
       </nav>
-      <div className="fixed bottom-20 right-4 z-30 flex items-center gap-2 rounded-full border border-slate-200/80 bg-white p-1.5 pr-3 shadow-sm dark:border-white/[0.09] dark:bg-[#11151c] lg:bottom-5">
-        <CompanionBotLogo className="h-8 w-8" />
+      <div className="fixed bottom-28 right-4 z-30 flex items-center gap-2 rounded-full border border-primary/30 bg-white p-1.5 pr-3 shadow-[0_0_14px_rgba(37,99,235,0.12)] dark:border-primary/40 dark:bg-[#111111] lg:bottom-6">
+        <CompanionBotLogo className="h-12 w-12 sm:h-14 sm:w-14" />
         <span className="hidden text-xs font-semibold text-slate-600 dark:text-slate-300 sm:inline">
           Companion
         </span>
@@ -1034,8 +1084,8 @@ function PortalNav({
           className={cn(
             "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
             active === id
-              ? "bg-primary text-primary-foreground"
-              : "text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white",
+              ? "border border-primary/50 bg-primary/10 text-primary shadow-[0_0_10px_rgba(37,99,235,0.1)]"
+              : "border border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white",
           )}
         >
           <Icon className="h-[17px] w-[17px] shrink-0" />
@@ -1045,7 +1095,7 @@ function PortalNav({
               className={cn(
                 "mt-0.5 block truncate text-[10px]",
                 active === id
-                  ? "text-primary-foreground/70"
+                  ? "text-primary/70"
                   : "text-slate-400 dark:text-slate-500",
               )}
             >
@@ -1116,7 +1166,7 @@ function DashboardHome({
   onNavigate: (section: PortalSection) => void;
 }) {
   return (
-    <div className="space-y-7 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
       <section>
         <h2 className="text-2xl font-semibold tracking-[-0.03em]">Dashboard</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -1203,7 +1253,7 @@ function DashboardHome({
 function Attendance() {
   const [selected, setSelected] = useState<string | null>(null);
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
       <section>
         <h2 className="text-2xl font-semibold tracking-[-0.03em]">
           Attendance
@@ -1333,7 +1383,7 @@ function Groups({
     : [];
   const hasPendingRequest = ownRequest?.status === "pending";
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-[-0.03em]">Groups</h2>
@@ -1767,7 +1817,7 @@ function LateDays({
   const [selectedDays, setSelectedDays] = useState(1);
   const assignment = "Case brief 02";
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
       <section>
         <h2 className="text-2xl font-semibold tracking-[-0.03em]">Late days</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
