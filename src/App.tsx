@@ -10,6 +10,7 @@ import PortalLoadingScreen from "@/components/PortalLoadingScreen";
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const PublicAttendance = lazy(() => import("./pages/PublicAttendance"));
+const StudentPortalPreview = lazy(() => import("./pages/StudentPortalPreview"));
 const BlockedAccess = lazy(() => import("./pages/BlockedAccess"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -71,22 +72,40 @@ const AppRoutes = () => (
     <Routes>
       <Route path="/" element={<PublicRoute><PublicAttendance /></PublicRoute>} />
       <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
+      <Route path="/student-preview" element={<StudentPortalPreview />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>
 );
 
+function ApplicationRouter() {
+  const isPreviewRoute = window.location.pathname === "/student-preview";
+
+  return (
+    <BrowserRouter>
+      {isPreviewRoute ? (
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/student-preview" element={<StudentPortalPreview />} />
+            <Route path="*" element={<Navigate to="/student-preview" replace />} />
+          </Routes>
+        </Suspense>
+      ) : (
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      )}
+    </BrowserRouter>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <TooltipProvider>
         <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </BrowserRouter>
+        <ApplicationRouter />
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
