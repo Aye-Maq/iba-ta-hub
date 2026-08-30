@@ -4,17 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import SubmitIssue from './SubmitIssue';
-import MyIssues from './MyIssues';
 import AttendanceView from './AttendanceView';
 import LateDays from './LateDays';
 import Groups from './Groups';
 import { useAuth } from '@/lib/auth';
-import { useAppSettingsQuery } from '@/features/settings';
 import { useLateDaysSummary } from '@/features/late-days';
 import { readScopedSessionStorage, writeScopedSessionStorage } from '@/lib/scoped-session-storage';
 
-type StudentPortalTab = 'submit' | 'issues' | 'attendance' | 'groups' | 'late-days';
+type StudentPortalTab = 'attendance' | 'groups' | 'late-days';
 const STUDENT_STORAGE_SCOPE = 'student';
 const ACTIVE_TAB_STORAGE_KEY = 'active-tab';
 
@@ -24,7 +21,7 @@ interface LateDaysSummary {
 }
 
 const isStudentPortalTab = (value: string | null): value is StudentPortalTab =>
-  value === 'submit' || value === 'issues' || value === 'attendance' || value === 'groups' || value === 'late-days';
+  value === 'attendance' || value === 'groups' || value === 'late-days';
 
 export default function StudentPortal() {
   const { erp, isVerified, studentName, isLoading } = useERP();
@@ -40,31 +37,15 @@ export default function StudentPortal() {
     isStudentPortalTab(storedActiveTab) ? storedActiveTab : 'attendance',
   );
   const [hasInitializedTab, setHasInitializedTab] = useState(false);
-  const { data: appSettings, isLoading: isSettingsLoading } = useAppSettingsQuery();
-  const ticketsEnabled = appSettings?.tickets_enabled ?? true;
   const { data: lateDaysSummary, isLoading: isLateDaysLoading } = useLateDaysSummary(isVerified ? erp : null);
   const lateDaysRemaining = lateDaysSummary.remaining;
   const currentGroupNumber = lateDaysSummary.groupNumber ?? null;
 
   useEffect(() => {
-    if (!isSettingsLoading && !hasInitializedTab) {
-      setActiveTab((currentTab) => {
-        if (ticketsEnabled) {
-          if (!isStudentPortalTab(storedActiveTab)) {
-            return 'submit';
-          }
-          return currentTab;
-        }
-
-        if (currentTab === 'submit' || currentTab === 'issues') {
-          return 'attendance';
-        }
-
-        return currentTab;
-      });
+    if (!hasInitializedTab) {
       setHasInitializedTab(true);
     }
-  }, [isSettingsLoading, ticketsEnabled, hasInitializedTab]);
+  }, [hasInitializedTab]);
 
   useEffect(() => {
     if (!hasInitializedTab) {
@@ -78,7 +59,7 @@ export default function StudentPortal() {
     // Keep callback for LateDays component contract; source of truth is feature hook above.
   };
 
-  if (isLoading || isSettingsLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -93,7 +74,7 @@ export default function StudentPortal() {
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground text-center md:text-left">
             Student Portal
           </h1>
-          <p className="text-muted-foreground text-lg">Manage your course issues and track attendance</p>
+          <p className="text-muted-foreground text-lg">Track attendance, groups, and late days</p>
         </div>
 
         {erp && (
@@ -158,16 +139,6 @@ export default function StudentPortal() {
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as StudentPortalTab)} className="w-full space-y-8">
             <TabsList className="flex w-full bg-muted/30 p-1.5 rounded-xl h-auto overflow-x-auto no-scrollbar">
-              {ticketsEnabled && (
-                <TabsTrigger value="submit" className="flex-1 py-3 px-6 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">
-                  Submit Issue
-                </TabsTrigger>
-              )}
-              {ticketsEnabled && (
-                <TabsTrigger value="issues" className="flex-1 py-3 px-6 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">
-                  My Issues
-                </TabsTrigger>
-              )}
               <TabsTrigger value="attendance" className="flex-1 py-3 px-6 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">
                 Attendance
               </TabsTrigger>
@@ -179,29 +150,7 @@ export default function StudentPortal() {
               </TabsTrigger>
             </TabsList>
 
-            {ticketsEnabled && (
-              <TabsContent value="submit" className="mt-6">
-                <SubmitIssue />
-              </TabsContent>
-            )}
-
-            {ticketsEnabled && (
-              <TabsContent value="issues" className="mt-6">
-                <MyIssues />
-              </TabsContent>
-            )}
-
             <TabsContent value="attendance" className="mt-6">
-              {!ticketsEnabled && (
-                <Card className="mb-6 border-amber-300/60 bg-amber-50/50">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Ticketing is currently disabled</CardTitle>
-                    <CardDescription>
-                      Complaints/ticket submission is temporarily turned off by the TA team. Please email the TAs directly for support.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
               <AttendanceView />
             </TabsContent>
 
