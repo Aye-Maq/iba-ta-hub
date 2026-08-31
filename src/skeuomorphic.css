@@ -15,6 +15,100 @@
   color-scheme: dark;
 }
 
+/* Keep the compact TA skin usable when the shared theme toggle selects light mode. */
+.light [data-ui-surface='ta'] {
+  --neo-base: #eef1f4;
+  --neo-dark: #c7cdd4;
+  --neo-light: #ffffff;
+  --neo-deboss: #27313b;
+  color-scheme: light;
+  background-color: var(--neo-base);
+}
+
+.light [data-ui-surface='ta'] .text-debossed,
+.light [data-ui-surface='ta'] .ta-text-engraved-strong,
+.light [data-ui-surface='ta'] .ta-ui-card-title,
+.light [data-ui-surface='ta'] .ta-section-title,
+.light [data-ui-surface='ta'] .ta-ui-dialog-title,
+.light [data-ui-surface='ta'] .ta-ui-sheet-title,
+.light [data-ui-surface='ta'] .ta-ui-alert-dialog-title,
+.light [data-ui-surface='ta'] .ta-sand-text-title {
+  color: #27313b !important;
+  text-shadow: none !important;
+}
+
+.light [data-ui-surface='ta'] .text-debossed-sm,
+.light [data-ui-surface='ta'] .ta-text-engraved-muted,
+.light [data-ui-surface='ta'] .text-debossed-body,
+.light [data-ui-surface='ta'] .ta-text-engraved-body,
+.light [data-ui-surface='ta'] .ta-module-shell,
+.light [data-ui-surface='ta'] .ta-ui-card-description,
+.light [data-ui-surface='ta'] .ta-section-subtitle,
+.light [data-ui-surface='ta'] .ta-ui-dialog-description,
+.light [data-ui-surface='ta'] .ta-ui-sheet-description,
+.light [data-ui-surface='ta'] .ta-ui-alert-dialog-description,
+.light [data-ui-surface='ta'] .ta-sand-text-secondary,
+.light [data-ui-surface='ta'] .text-muted-foreground,
+.light [data-ui-surface='ta'] .ta-ui-table,
+.light [data-ui-surface='ta'] .ta-ui-table-cell,
+.light [data-ui-surface='ta'] .ta-ui-table-head-cell,
+.light [data-ui-surface='ta'] .ta-module-shell table th,
+.light [data-ui-surface='ta'] .ta-module-shell table td {
+  color: #4b5966 !important;
+  text-shadow: none !important;
+}
+
+.light [data-ui-surface='ta'] .ta-ui-input:is([type='date'], [type='time'], [type='datetime-local']) {
+  color-scheme: light;
+}
+
+[data-ui-surface='ta'] .ta-flat-card,
+[data-ui-surface='ta'] .ta-surface-panel {
+  background: #111315;
+  border-color: #2a2f34;
+  color: #eef2f5;
+}
+
+[data-ui-surface='ta'] .ta-flat-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+[data-ui-surface='ta'] .ta-flat-card:hover {
+  border-color: #4b5966;
+  background: #171a1d;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
+}
+
+.light [data-ui-surface='ta'] .ta-flat-card,
+.light [data-ui-surface='ta'] .ta-surface-panel {
+  background: #ffffff;
+  border-color: #d6dde4;
+  color: #27313b;
+}
+
+.light [data-ui-surface='ta'] .ta-flat-card {
+  box-shadow: 0 1px 2px rgba(39, 49, 59, 0.08);
+}
+
+.light [data-ui-surface='ta'] .ta-flat-card:hover {
+  border-color: #8da2b5;
+  background: #f8fafc;
+  box-shadow: 0 5px 14px rgba(39, 49, 59, 0.1);
+}
+
+[data-ui-surface='student'] .student-feature-card {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.06);
+}
+
+.dark [data-ui-surface='student'] .student-feature-card {
+  background: #0d0e10;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
 /* Explicitly disable legacy broad glow/fallback layers. */
 [data-ui-surface='ta'] .ta-sand-bg-glow,
 [data-ui-surface='ta'] .ta-noise-fallback {

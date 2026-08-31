@@ -8,8 +8,8 @@ import {
   Download,
   Layers,
   LogOut,
-  MessageSquare,
   Settings,
+  MessageSquare,
   ShieldAlert,
   Users,
   Video,
@@ -46,7 +46,7 @@ import {
   type ZoomSessionReport,
 } from '@/lib/zoom-session-report';
 import PortalLoadingScreen from '@/components/PortalLoadingScreen';
-import TAHelpAssistant from './TAHelpAssistant';
+import { ModeToggle } from '@/components/mode-toggle';
 
 const TAZoomProcess = lazy(() => import('./TAZoomProcess'));
 const AttendanceMarking = lazy(() => import('./AttendanceMarking'));
@@ -120,9 +120,21 @@ const MODULES: ModuleConfig[] = [
   { id: 'settings', title: 'Lists & Settings', description: 'Manage access and submission lists', icon: Settings, colSpan: 2 },
 ];
 
+const VISIBLE_MODULE_IDS: ReadonlySet<PortalModule> = new Set([
+  'zoom',
+  'attendance',
+  'roster',
+  'groups',
+  'consolidated',
+  'sessions',
+  'late-days',
+  'export',
+  'settings',
+]);
+
 const isAttendanceWorkspaceTab = (value: string | null): value is AttendanceWorkspaceTab => value === 'zoom' || value === 'attendance';
 const isPortalModule = (value: string | null): value is PortalModule =>
-  Boolean(value && MODULES.some((module) => module.id === value));
+  Boolean(value && VISIBLE_MODULE_IDS.has(value as PortalModule));
 
 const readStoredAttendanceWorkspaceTab = (userEmail: string | null | undefined): AttendanceWorkspaceTab => {
   const storedScopedTab = readScopedSessionStorage<string | null>(
@@ -242,24 +254,6 @@ export default function TAPortal() {
   const showAttendanceSwitch = activeModule === 'zoom' || activeModule === 'attendance';
 
   useEffect(() => {
-    const root = document.documentElement;
-    const hadLight = root.classList.contains('light');
-    const hadDark = root.classList.contains('dark');
-    root.classList.remove('light');
-    root.classList.add('dark');
-
-    return () => {
-      root.classList.remove('light', 'dark');
-      if (hadLight) {
-        root.classList.add('light');
-      }
-      if (hadDark) {
-        root.classList.add('dark');
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     writeScopedSessionStorage(
       TA_STORAGE_SCOPE,
       userEmail,
@@ -273,7 +267,12 @@ export default function TAPortal() {
   }, [attendanceWorkspaceTab, userEmail]);
 
   useEffect(() => {
-    writeScopedSessionStorage(TA_STORAGE_SCOPE, userEmail, ACTIVE_MODULE_STORAGE_KEY, activeModule);
+    writeScopedSessionStorage(
+      TA_STORAGE_SCOPE,
+      userEmail,
+      ACTIVE_MODULE_STORAGE_KEY,
+      activeModule && VISIBLE_MODULE_IDS.has(activeModule) ? activeModule : null,
+    );
   }, [activeModule, userEmail]);
 
   useEffect(() => {
@@ -364,6 +363,9 @@ export default function TAPortal() {
   };
 
   const handleOpenModule = (module: PortalModule) => {
+    if (!VISIBLE_MODULE_IDS.has(module)) {
+      return;
+    }
     clearPendingCommands();
     setHelpSnapshotDetails({});
     setHelpModuleStage(getImmediateStageForModule(module, attendanceWorkspaceTab));
@@ -719,7 +721,7 @@ export default function TAPortal() {
   const moduleContext = getModuleContext();
 
   return (
-    <div data-ui-surface="ta" className="min-h-screen p-8 font-sans relative overflow-hidden">
+    <div data-ui-surface="ta" className="relative min-h-screen overflow-hidden p-4 font-sans md:p-6">
       <div className="matte-grain" />
 
       <div className="max-w-6xl mx-auto">
@@ -732,13 +734,14 @@ export default function TAPortal() {
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
             >
-              <header className="mb-12 flex justify-between items-end px-4">
+              <header className="mb-8 flex flex-col gap-4 px-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h1 className="text-4xl font-extrabold tracking-tight mb-2 text-debossed">TA Dashboard</h1>
                   <p className="text-debossed-sm text-sm tracking-wide font-bold uppercase">Attendance Operations</p>
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <ModeToggle compact />
                   <button
                     type="button"
                     onClick={handleSignOut}
@@ -759,39 +762,30 @@ export default function TAPortal() {
                 </div>
               </header>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-7 px-4">
-                {MODULES.map((card) => {
+              <div className="grid grid-cols-1 gap-3 px-1 sm:grid-cols-2 lg:grid-cols-3">
+                {MODULES.filter((card) => VISIBLE_MODULE_IDS.has(card.id)).map((card) => {
                   const Icon = card.icon;
                   return (
                     <button
                       key={card.id}
                       onClick={() => handleOpenModule(card.id)}
                       className={cn(
-                        'ta-dashboard-card neo-btn neo-out group cursor-pointer flex flex-col justify-between min-h-[190px] rounded-[32px] p-7 relative text-left',
-                        card.colSpan === 2 ? 'lg:col-span-2' : 'lg:col-span-1',
+                        'ta-dashboard-card ta-flat-card group cursor-pointer flex min-h-[112px] flex-col justify-between rounded-xl border p-4 text-left transition-colors',
                       )}
                     >
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="ta-dashboard-icon-shell w-[72px] h-[72px] rounded-2xl neo-in p-1 flex items-center justify-center relative overflow-hidden">
-                          <Icon className="ta-dashboard-icon-base relative z-[1] w-8 h-8 text-debossed-sm" />
-                          <Icon
-                            aria-hidden="true"
-                            className="ta-dashboard-icon-glow ta-dashboard-icon-glow--base absolute w-8 h-8 status-all-table-text pointer-events-none"
-                          />
-                          <Icon
-                            aria-hidden="true"
-                            className="ta-dashboard-icon-glow ta-dashboard-icon-glow--hover absolute w-8 h-8 status-all-table-text pointer-events-none"
-                          />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="ta-dashboard-icon-shell flex h-9 w-9 items-center justify-center rounded-lg border">
+                          <Icon className="h-5 w-5 text-debossed-sm" />
                         </div>
 
-                        <div className="w-4 h-4 rounded-full neo-in relative flex items-center justify-center">
-                          <div className="ta-dashboard-led w-2 h-2 rounded-full transition-all duration-300 delay-100" />
+                        <div className="flex h-4 w-4 items-center justify-center rounded-full border">
+                          <div className="ta-dashboard-led h-1.5 w-1.5 rounded-full transition-all duration-300" />
                         </div>
                       </div>
 
-                      <div>
-                        <h3 className="ta-dashboard-title text-debossed font-black mb-1.5 tracking-wide text-lg">{card.title}</h3>
-                        <p className="ta-dashboard-description text-debossed-sm text-sm leading-relaxed font-semibold">{card.description}</p>
+                      <div className="mt-3">
+                        <h3 className="ta-dashboard-title text-debossed text-sm font-semibold tracking-tight">{card.title}</h3>
+                        <p className="ta-dashboard-description text-debossed-sm mt-1 text-xs leading-snug">{card.description}</p>
                       </div>
                     </button>
                   );
@@ -807,7 +801,7 @@ export default function TAPortal() {
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-6"
             >
-              <div className="neo-out rounded-[32px] p-5 md:p-6">
+              <div className="ta-surface-panel rounded-2xl border p-4 shadow-sm md:p-5">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <button onClick={() => { setHelpModuleStage(null); setActiveModule(null); }} className="group/back flex items-center gap-2 text-sm font-bold tracking-wide text-debossed-sm">
                     <div className="p-1.5 rounded-full neo-in">
@@ -817,6 +811,7 @@ export default function TAPortal() {
                   </button>
 
                   <div className="flex items-center gap-3">
+                    <ModeToggle compact />
                     <button
                       type="button"
                       onClick={handleSignOut}
@@ -876,13 +871,12 @@ export default function TAPortal() {
                 )}
               </div>
 
-              <div className="neo-out rounded-[26px] p-3 md:p-4">{renderActiveModule()}</div>
+              <div className="ta-surface-panel rounded-2xl border p-2 shadow-sm md:p-3">{renderActiveModule()}</div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      <TAHelpAssistant snapshot={helpSnapshot} onRunAction={handleRunHelpAction} />
     </div>
   );
 }

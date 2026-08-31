@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { checkRosterCached, isRosterVerificationEnabledCached } from '@/lib/access-checks';
+import { readStudentERP, writeStudentERP } from '@/lib/student-erp-storage';
 
 interface ERPContextType {
   erp: string | null;
@@ -17,7 +17,7 @@ const ERPContext = createContext<ERPContextType | undefined>(undefined);
 
 export function ERPProvider({ children }: { children: React.ReactNode }) {
   const [erp, setErpState] = useState<string | null>(() => {
-    return localStorage.getItem('student_erp');
+    return readStudentERP();
   });
   const [isVerified, setIsVerified] = useState(false);
   const [studentName, setStudentName] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
 
   const setERP = useCallback((newErp: string) => {
     setErpState(newErp);
-    localStorage.setItem('student_erp', newErp);
+    writeStudentERP(newErp);
   }, []);
 
   const checkRoster = useCallback(async (erpToCheck: string) => {

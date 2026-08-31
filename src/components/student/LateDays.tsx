@@ -431,19 +431,19 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader className="pb-2">
             <CardDescription>{currentGroup ? 'Shared Late Days Left' : 'Late Days Left'}</CardDescription>
             <CardTitle>{remaining}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader className="pb-2">
             <CardDescription>Your Claimed Days</CardDescription>
             <CardTitle>{usedDays}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader className="pb-2">
             <CardDescription>{currentGroup ? 'Group Late Days Remaining' : 'Awaiting Deadline'}</CardDescription>
             <CardTitle>{currentGroup ? groupRemainingDays : awaitingDeadlineCount}</CardTitle>
@@ -458,7 +458,7 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
       </p>
 
       {currentGroup && (
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader className="pb-3">
             <CardTitle>Group Late Days</CardTitle>
             <CardDescription>
@@ -483,7 +483,7 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
         </Card>
       )}
 
-      <Card>
+      <Card className="student-feature-card">
         <CardHeader>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -574,7 +574,7 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="student-feature-card">
         <CardHeader>
           <CardTitle>Your Claim History</CardTitle>
           <CardDescription>Claims you personally made.</CardDescription>
@@ -620,7 +620,7 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
       </Card>
 
       {currentGroup && (
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader>
             <CardTitle>Group Claim Activity</CardTitle>
             <CardDescription>Who in your group claimed late days, when they claimed, and how many days they used.</CardDescription>

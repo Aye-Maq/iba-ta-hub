@@ -105,12 +105,12 @@ export default function PublicAttendanceBoard() {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border bg-card shadow-sm">
+      <CardHeader className="border-b pb-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle>Attendance Board</CardTitle>
-            <CardDescription>Session-wise attendance and total penalties for all students</CardDescription>
+            <CardTitle className="text-xl tracking-tight">Attendance</CardTitle>
+            <CardDescription>Search the latest public session record by name, ERP, or class.</CardDescription>
           </div>
 
           <div className="relative w-full md:w-64">
@@ -135,7 +135,7 @@ export default function PublicAttendanceBoard() {
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="pt-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -155,8 +155,8 @@ export default function PublicAttendanceBoard() {
         ) : (
           <div className="rounded-md border max-h-[70vh] overflow-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
+              <TableHeader className="sticky top-0 z-30 bg-background shadow-sm">
+                <TableRow className="bg-background">
                   <TableHead className="sticky left-0 top-0 z-30 w-[60px] bg-background text-center">#</TableHead>
                   <TableHead className="sticky left-[60px] top-0 z-30 w-[90px] bg-background">Class</TableHead>
                   <TableHead className="sticky left-[150px] top-0 z-30 w-[220px] bg-background">Name</TableHead>

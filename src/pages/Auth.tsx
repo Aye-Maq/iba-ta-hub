@@ -135,22 +135,22 @@ export default function Auth() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
       <div className="absolute right-4 top-4">
-        <ModeToggle />
+        <ModeToggle compact />
       </div>
-      <div className="w-full max-w-md animate-fade-in">
+      <main aria-labelledby="auth-heading" className="w-full max-w-md animate-fade-in">
         <div className="mb-8 flex items-center justify-center">
           <div className="flex items-center gap-3">
             <CompanionBotLogo className="h-14 w-14" />
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Course Portal</h1>
+              <h1 id="auth-heading" className="text-2xl font-semibold tracking-tight text-foreground">Course Portal</h1>
               <p className="text-sm text-muted-foreground">Sign in to continue</p>
             </div>
           </div>
         </div>
 
-        <Card className="shadow-lg">
+        <Card className="border bg-card shadow-sm">
           <CardHeader className="space-y-4">
             <div>
               <CardTitle>{isStudentMode ? 'Student Login' : 'TA Login'}</CardTitle>
@@ -170,14 +170,12 @@ export default function Auth() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <div className="min-h-[40px]">
-              {error && (
-                <div className="animate-in fade-in zoom-in-95 duration-200 flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-            </div>
+            {error && (
+              <div className="animate-in fade-in zoom-in-95 duration-200 flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
@@ -213,7 +211,7 @@ export default function Auth() {
             </form>
           </CardContent>
         </Card>
-      </div>
+      </main>
     </div>
   );
 }

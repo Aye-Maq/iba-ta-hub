@@ -174,19 +174,19 @@ export default function Groups() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader className="pb-2">
             <CardDescription>Your Group</CardDescription>
             <CardTitle>{currentGroup ? getGroupDisplayName(currentGroup.group_number) : 'Ungrouped'}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader className="pb-2">
             <CardDescription>Editable Until</CardDescription>
             <CardTitle>{currentGroup ? formatDate(currentGroup.student_edit_locked_at, 'PPP p') : '-'}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader className="pb-2">
             <CardDescription>Open Groups</CardDescription>
             <CardTitle>{joinableGroups.length}</CardTitle>
@@ -195,7 +195,7 @@ export default function Groups() {
       </div>
 
       {currentGroup ? (
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader>
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
@@ -346,7 +346,7 @@ export default function Groups() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="student-feature-card">
           <CardHeader>
             <CardTitle>Create or Join a Group</CardTitle>
             <CardDescription>

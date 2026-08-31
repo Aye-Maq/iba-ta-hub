@@ -1,11 +1,11 @@
 import { useTheme } from "@/components/theme-provider"
 
-export function ModeToggle() {
+export function ModeToggle({ compact = false }: { compact?: boolean }) {
     const { theme, setTheme } = useTheme()
     const isDark = theme === "dark" || theme === "system"
 
     return (
-        <label className="theme-toggle-label" aria-label="Toggle dark mode">
+        <label className={`theme-toggle-label${compact ? ' theme-toggle-label--compact' : ''}`} aria-label="Toggle dark mode">
             <input
                 type="checkbox"
                 className="theme-toggle-checkbox"

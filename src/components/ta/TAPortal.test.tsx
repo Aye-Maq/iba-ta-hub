@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import TAPortal from './TAPortal';
@@ -101,7 +101,23 @@ describe('TAPortal persistence', () => {
     expect(screen.getByRole('tab', { name: 'LIVE ATTENDANCE' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('renders dashboard cards with the enhanced hover-ready icon treatment', async () => {
+  it('does not reopen hidden modules from persisted state', async () => {
+    window.sessionStorage.setItem(
+      'aamd-workspace:ta:ayeshamaqsood5100@gmail.com:active-module',
+      JSON.stringify('issues'),
+    );
+
+    render(
+      <MemoryRouter>
+        <TAPortal />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('button', { name: /issue queue/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /zoom processor/i })).toBeInTheDocument();
+  });
+
+  it('renders a compact responsive module grid with accessible theme control', async () => {
     render(
       <MemoryRouter>
         <TAPortal />
@@ -110,7 +126,13 @@ describe('TAPortal persistence', () => {
 
     const zoomCard = screen.getByRole('button', { name: /zoom processor upload logs, review matches, and generate attendance/i });
     expect(zoomCard).toHaveClass('ta-dashboard-card');
-    expect(zoomCard.querySelector('.ta-dashboard-icon-glow--base')).toBeTruthy();
-    expect(zoomCard.querySelector('.ta-dashboard-icon-glow--hover')).toBeTruthy();
+    expect(zoomCard).toHaveClass('ta-flat-card');
+    expect(zoomCard).not.toHaveClass('min-h-[190px]');
+    expect(screen.getAllByLabelText('Toggle dark mode').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /rule exceptions/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /issue queue/i })).not.toBeInTheDocument();
+
+    fireEvent.click(zoomCard);
+    expect(await screen.findAllByLabelText('Toggle dark mode')).toHaveLength(1);
   });
 });

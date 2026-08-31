@@ -29,7 +29,7 @@ export default function AttendanceView() {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
-                <Card>
+                <Card className="student-feature-card">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg">Total Absences</CardTitle>
                     </CardHeader>
@@ -47,7 +47,7 @@ export default function AttendanceView() {
                         )}
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="student-feature-card">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg">Naming Penalties</CardTitle>
                     </CardHeader>
@@ -57,7 +57,7 @@ export default function AttendanceView() {
                 </Card>
             </div>
 
-            <Card>
+            <Card className="student-feature-card">
                 <CardHeader>
                     <CardTitle>Session History</CardTitle>
                     <CardDescription>Your attendance record by session</CardDescription>

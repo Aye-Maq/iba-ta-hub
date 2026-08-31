@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { checkTaAllowlistCached, clearAccessChecksCache } from '@/lib/access-checks';
 import { clearScopedSessionStorageScope } from '@/lib/scoped-session-storage';
+import { clearStudentERP } from '@/lib/student-erp-storage';
 
 interface AuthContextType {
   user: User | null;
@@ -148,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     const currentEmail = user?.email?.trim().toLowerCase() ?? null;
+    clearStudentERP();
     if (user?.id === '00000') {
       setUser(null);
       setSession(null);
