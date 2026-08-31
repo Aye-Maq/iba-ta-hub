@@ -103,7 +103,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
       <CompanionBotLogo
-        className={cn("shrink-0", compact ? "h-9 w-9" : "h-10 w-10")}
+        className={cn("shrink-0", compact ? "h-11 w-11" : "h-12 w-12")}
       />
       <div className="min-w-0">
         <p className="truncate text-[15px] font-semibold text-slate-950 dark:text-white">
@@ -208,7 +208,7 @@ export default function StudentPortalPreview() {
       ...current,
       {
         id: nextGroup,
-        leader: currentStudent.name,
+        poc: currentStudent.name,
         members: [currentStudent.name],
         capacity: 5,
       },
@@ -285,7 +285,7 @@ export default function StudentPortalPreview() {
       current.filter((item) => item.erp !== currentStudent.erp),
     );
   };
-  const handleLeaderDecision = (requestId: string, accepted: boolean) => {
+  const handlePocDecision = (requestId: string, accepted: boolean) => {
     const request = requests.find((item) => item.id === requestId);
     if (!request) return;
     setRequests((current) =>
@@ -367,7 +367,7 @@ export default function StudentPortalPreview() {
           onJoinRequest={handleJoinRequest}
           onRequestStatus={handleRequestStatus}
           onCancelRequest={handleCancelRequest}
-          onLeaderDecision={handleLeaderDecision}
+          onPocDecision={handlePocDecision}
           onCreate={handleCreate}
           onLeave={handleLeave}
           onDeleteGroup={handleDeleteGroup}
@@ -588,15 +588,15 @@ const attendanceStatusMeta: Record<
 > = {
   present: {
     label: "Present",
-    dot: "bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.45)]",
+    dot: "bg-[#39ff88] shadow-[0_0_0_1px_rgba(57,255,136,0.3),0_0_4px_rgba(57,255,136,0.55)]",
   },
   absent: {
     label: "Absent",
-    dot: "bg-red-400 shadow-[0_0_7px_rgba(248,113,113,0.35)]",
+    dot: "bg-[#ff4d5f] shadow-[0_0_0_1px_rgba(255,77,95,0.3),0_0_4px_rgba(255,77,95,0.5)]",
   },
   excused: {
     label: "Excused",
-    dot: "bg-amber-300 shadow-[0_0_7px_rgba(252,211,77,0.3)]",
+    dot: "bg-[#ffd447] shadow-[0_0_0_1px_rgba(255,212,71,0.3),0_0_4px_rgba(255,212,71,0.5)]",
   },
   pending: { label: "Pending", dot: "bg-slate-500" },
 };
@@ -612,7 +612,7 @@ function AttendanceDot({ status }: { status: StudentStatus }) {
     >
       <span
         aria-hidden="true"
-        className={cn("h-2.5 w-2.5 rounded-full", meta.dot)}
+        className={cn("h-2 w-2 rounded-full", meta.dot)}
       />
       <span className="sr-only">{meta.label}</span>
     </span>
@@ -921,7 +921,7 @@ function DashboardPreview({
   onJoinRequest,
   onRequestStatus,
   onCancelRequest,
-  onLeaderDecision,
+  onPocDecision,
   onCreate,
   onLeave,
   claims,
@@ -938,7 +938,7 @@ function DashboardPreview({
   onJoinRequest: (id: string) => void;
   onRequestStatus: (status: JoinRequestStatus) => void;
   onCancelRequest: () => void;
-  onLeaderDecision: (id: string, accepted: boolean) => void;
+  onPocDecision: (id: string, accepted: boolean) => void;
   onCreate: () => void;
   onLeave: () => void;
   claims: PreviewClaim[];
@@ -1025,7 +1025,7 @@ function DashboardPreview({
               onJoinRequest={onJoinRequest}
               onRequestStatus={onRequestStatus}
               onCancelRequest={onCancelRequest}
-              onLeaderDecision={onLeaderDecision}
+              onPocDecision={onPocDecision}
               onCreate={onCreate}
               onLeave={onLeave}
               onDeleteGroup={onDeleteGroup}
@@ -1342,7 +1342,7 @@ function Groups({
   onJoinRequest,
   onRequestStatus,
   onCancelRequest,
-  onLeaderDecision,
+  onPocDecision,
   onCreate,
   onLeave,
   onDeleteGroup,
@@ -1353,7 +1353,7 @@ function Groups({
   onJoinRequest: (id: string) => void;
   onRequestStatus: (status: JoinRequestStatus) => void;
   onCancelRequest: () => void;
-  onLeaderDecision: (id: string, accepted: boolean) => void;
+  onPocDecision: (id: string, accepted: boolean) => void;
   onCreate: () => void;
   onLeave: () => void;
   onDeleteGroup: () => void;
@@ -1397,12 +1397,12 @@ function Groups({
             className="rounded-md"
             onClick={() =>
               setDeclineOpen(
-                current.leader === currentStudent.name ? "delete" : "leave",
+                current.poc === currentStudent.name ? "delete" : "leave",
               )
             }
           >
             <LogOut className="h-4 w-4" />
-            {current.leader === currentStudent.name
+            {current.poc === currentStudent.name
               ? "Delete group"
               : "Leave group"}
           </Button>
@@ -1422,8 +1422,8 @@ function Groups({
             <div>
               <StatusPill tone="warning">Request pending</StatusPill>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                {ownRequest.groupId} · The group leader will accept or decline
-                your request.
+                {ownRequest.groupId} · The group POC will accept or decline your
+                request.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1479,7 +1479,7 @@ function Groups({
         <ResultNotice
           tone="danger"
           title="Request declined"
-          detail={`The leader declined your request for ${ownRequest.groupId}.`}
+          detail={`The group POC declined your request for ${ownRequest.groupId}.`}
           action={
             <Button
               variant="outline"
@@ -1503,7 +1503,7 @@ function Groups({
                 </StatusPill>
                 <h3 className="mt-3 text-xl font-semibold">{current.id}</h3>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Leader: {current.leader} · {current.members.length} of{" "}
+                  POC: {current.poc} · {current.members.length} of{" "}
                   {current.capacity} members
                 </p>
               </div>
@@ -1559,13 +1559,13 @@ function Groups({
                 </p>
               )}
             </div>
-            {current.leader === currentStudent.name && (
+            {current.poc === currentStudent.name && (
               <div className="mt-7 border-t border-slate-200 pt-5 dark:border-white/[0.08]">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold">Join requests</p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Approve or decline incoming requests.
+                      Review incoming requests as the group POC.
                     </p>
                   </div>
                   <StatusPill tone="neutral">
@@ -1591,7 +1591,7 @@ function Groups({
                           <Button
                             size="sm"
                             className="rounded-md"
-                            onClick={() => onLeaderDecision(request.id, true)}
+                            onClick={() => onPocDecision(request.id, true)}
                           >
                             Accept
                           </Button>
@@ -1641,7 +1641,7 @@ function Groups({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{group.id}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Leader: {group.leader}
+                    POC: {group.poc}
                   </p>
                   <p className="text-xs text-slate-500">
                     {group.members.length} of {group.capacity} members
@@ -1671,8 +1671,8 @@ function Groups({
           <DialogHeader>
             <DialogTitle>Create a group?</DialogTitle>
             <DialogDescription>
-              You will become the leader. A sample incoming request will be
-              added so the approval flow can be previewed.
+              You will become the POC. A sample incoming request will be added
+              so the approval flow can be previewed.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1698,8 +1698,8 @@ function Groups({
           <DialogHeader>
             <DialogTitle>Request to join {joinOpen}?</DialogTitle>
             <DialogDescription>
-              The group leader will accept or decline your request. You can
-              cancel while it is pending.
+              The group POC will accept or decline your request. You can cancel
+              while it is pending.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1747,7 +1747,7 @@ function Groups({
               onClick={() => {
                 if (declineOpen === "leave") onLeave();
                 else if (declineOpen === "delete") onDeleteGroup();
-                else onLeaderDecision(declineOpen, false);
+                else onPocDecision(declineOpen, false);
                 setDeclineOpen(null);
               }}
             >

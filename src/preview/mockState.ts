@@ -10,6 +10,7 @@ export type PreviewStudent = {
 
 export type PreviewGroup = {
   id: string;
+  poc: string;
   members: string[];
   capacity: number;
 };
@@ -94,23 +95,23 @@ export const previewStudents: PreviewStudent[] = Array.from(
 export const initialGroups: PreviewGroup[] = [
   {
     id: "Group 1",
-    leader: "Areeba Khan",
+    poc: "Areeba Khan",
     members: ["Areeba Khan", "Hamza Ahmed"],
     capacity: 5,
   },
   {
     id: "Group 2",
-    leader: "Maham Raza",
+    poc: "Maham Raza",
     members: ["Maham Raza", "Bilal Malik", "Zoya Hussain"],
     capacity: 5,
   },
   {
     id: "Group 3",
-    leader: "Ayesha Siddiqui",
+    poc: "Ayesha Siddiqui",
     members: ["Ayesha Siddiqui"],
     capacity: 5,
   },
-  { id: "Group 4", leader: "Usman Ali", members: ["Usman Ali"], capacity: 5 },
+  { id: "Group 4", poc: "Usman Ali", members: ["Usman Ali"], capacity: 5 },
 ];
 
 export const initialClaims: PreviewClaim[] = [
