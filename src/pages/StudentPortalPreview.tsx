@@ -1,4 +1,5 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -61,6 +62,33 @@ import {
 type PreviewScreen = "public" | "login" | "dashboard";
 type PortalSection = "dashboard" | "attendance" | "groups" | "late-days";
 type BoardState = "ready" | "loading" | "error" | "empty";
+type FontStyle = "modern" | "clean" | "academic" | "editorial";
+
+const fontPresets: Record<
+  FontStyle,
+  { label: string; heading: string; body: string }
+> = {
+  modern: {
+    label: "Modern",
+    heading: "'Manrope', sans-serif",
+    body: "'Inter', sans-serif",
+  },
+  clean: {
+    label: "Clean",
+    heading: "'Inter', sans-serif",
+    body: "'Inter', sans-serif",
+  },
+  academic: {
+    label: "Academic",
+    heading: "'IBM Plex Sans', sans-serif",
+    body: "'IBM Plex Sans', sans-serif",
+  },
+  editorial: {
+    label: "Editorial",
+    heading: "'Source Serif 4', Georgia, serif",
+    body: "'Source Sans 3', sans-serif",
+  },
+};
 
 const navItems: Array<{
   id: PortalSection;
@@ -150,16 +178,52 @@ function StatusPill({
   );
 }
 
+function FontStyleSelector({
+  value,
+  onChange,
+}: {
+  value: FontStyle;
+  onChange: (value: FontStyle) => void;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <label
+        htmlFor="student-preview-font-style"
+        className="hidden text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:inline"
+      >
+        Font style
+      </label>
+      <select
+        id="student-preview-font-style"
+        aria-label="Font style"
+        value={value}
+        onChange={(event) => onChange(event.target.value as FontStyle)}
+        className="h-8 w-[84px] max-w-full rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-700 outline-none transition-colors focus:border-primary/60 focus:ring-2 focus:ring-primary/20 dark:border-white/[0.12] dark:bg-[#111111] dark:text-slate-200 sm:w-[106px]"
+      >
+        {(Object.keys(fontPresets) as FontStyle[]).map((preset) => (
+          <option key={preset} value={preset}>
+            {fontPresets[preset].label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function PreviewSwitcher({
   screen,
   onNavigate,
+  fontStyle,
+  onFontStyleChange,
 }: {
   screen: PreviewScreen;
   onNavigate: (screen: PreviewScreen) => void;
+  fontStyle: FontStyle;
+  onFontStyleChange: (value: FontStyle) => void;
 }) {
   return (
     <div className="border-b border-slate-200/80 bg-white px-4 py-2 dark:border-white/[0.08] dark:bg-black sm:px-6">
-      <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3">
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
           <span className="hidden h-2 w-2 rounded-full bg-emerald-500 sm:block" />
           Design preview
@@ -184,7 +248,10 @@ function PreviewSwitcher({
             </button>
           ))}
         </div>
-        <ModeToggle />
+        <div className="flex items-center gap-2">
+          <FontStyleSelector value={fontStyle} onChange={onFontStyleChange} />
+          <ModeToggle />
+        </div>
       </div>
     </div>
   );
@@ -192,6 +259,7 @@ function PreviewSwitcher({
 
 export default function StudentPortalPreview() {
   const [screen, setScreen] = useState<PreviewScreen>("public");
+  const [fontStyle, setFontStyle] = useState<FontStyle>("modern");
   const [section, setSection] = useState<PortalSection>("dashboard");
   const [groups, setGroups] = useState<PreviewGroup[]>(initialGroups);
   const [myGroup, setMyGroup] = useState<string | null>(null);
@@ -199,8 +267,33 @@ export default function StudentPortalPreview() {
   const [claims, setClaims] = useState<PreviewClaim[]>(initialClaims);
   const [lateBalance, setLateBalance] = useState(3);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  useEffect(() => {
+    const linkId = "student-preview-google-fonts";
+    const previousDocumentOverflowX = document.documentElement.style.overflowX;
+    document.documentElement.style.overflowX = "clip";
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement("link");
+      link.id = linkId;
+      link.rel = "stylesheet";
+      link.href =
+        "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&display=swap";
+      document.head.appendChild(link);
+    }
+    return () => {
+      document.getElementById(linkId)?.remove();
+      document.documentElement.style.overflowX = previousDocumentOverflowX;
+    };
+  }, []);
+  const resetPreviewScroll = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  };
   const navigate = (next: PreviewScreen) => {
+    resetPreviewScroll();
     setScreen(next);
+  };
+  const setPortalSection = (next: PortalSection) => {
+    resetPreviewScroll();
+    setSection(next);
   };
   const handleCreate = () => {
     const nextGroup = `Group ${groups.length + 1}`;
@@ -341,9 +434,46 @@ export default function StudentPortalPreview() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] text-slate-900 transition-colors dark:bg-black dark:text-slate-100">
+    <div
+      data-student-preview-root
+      style={
+        {
+          "--preview-heading-font": fontPresets[fontStyle].heading,
+          "--preview-body-font": fontPresets[fontStyle].body,
+        } as CSSProperties
+      }
+      className="min-h-screen overflow-x-hidden bg-[#f5f7fa] text-slate-900 transition-colors dark:bg-black dark:text-slate-100"
+    >
+      <style>{`
+        [data-student-preview-root] {
+          font-family: var(--preview-body-font);
+        }
+        [data-student-preview-root] button,
+        [data-student-preview-root] input,
+        [data-student-preview-root] select,
+        [data-student-preview-root] textarea {
+          font-family: var(--preview-body-font);
+        }
+        [data-student-preview-root] h1,
+        [data-student-preview-root] h2,
+        [data-student-preview-root] h3,
+        [data-student-preview-root] h4,
+        [data-student-preview-root] h5,
+        [data-student-preview-root] h6 {
+          font-family: var(--preview-heading-font);
+        }
+        [data-student-preview-root] code,
+        [data-student-preview-root] .font-mono {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+        }
+      `}</style>
       {screen !== "dashboard" && (
-        <PreviewSwitcher screen={screen} onNavigate={navigate} />
+        <PreviewSwitcher
+          screen={screen}
+          onNavigate={navigate}
+          fontStyle={fontStyle}
+          onFontStyleChange={setFontStyle}
+        />
       )}
       {screen === "public" && (
         <PublicPreview onLogin={() => navigate("login")} />
@@ -352,7 +482,7 @@ export default function StudentPortalPreview() {
         <LoginPreview
           onBack={() => navigate("public")}
           onSuccess={() => {
-            setSection("dashboard");
+            setPortalSection("dashboard");
             navigate("dashboard");
           }}
         />
@@ -360,7 +490,7 @@ export default function StudentPortalPreview() {
       {screen === "dashboard" && (
         <DashboardPreview
           section={section}
-          setSection={setSection}
+          setSection={setPortalSection}
           groups={groups}
           myGroup={myGroup}
           requests={requests}
@@ -375,6 +505,8 @@ export default function StudentPortalPreview() {
           lateBalance={lateBalance}
           onClaim={handleClaim}
           onSignOut={() => setLogoutOpen(true)}
+          fontStyle={fontStyle}
+          onFontStyleChange={setFontStyle}
         />
       )}
       <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>
@@ -436,8 +568,10 @@ function PublicPreview({ onLogin }: { onLogin: () => void }) {
           </Button>
         </div>
       </header>
-      <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-8 sm:py-8">
-        <Card className={cn(surface, "overflow-hidden")}>
+      <main className="mx-auto w-full max-w-[1400px] min-w-0 max-w-full overflow-hidden px-4 py-6 sm:px-8 sm:py-8">
+        <Card
+          className={cn(surface, "w-full min-w-0 max-w-full overflow-hidden")}
+        >
           <CardHeader className="border-b border-slate-200/80 pb-5 dark:border-white/[0.08] sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -501,7 +635,7 @@ function PublicPreview({ onLogin }: { onLogin: () => void }) {
               )}
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="w-full min-w-0 max-w-full overflow-hidden p-0">
             {boardState === "loading" && (
               <BoardMessage
                 icon={<Loader2 className="h-5 w-5 animate-spin" />}
@@ -621,7 +755,10 @@ function AttendanceDot({ status }: { status: StudentStatus }) {
 
 function AttendanceTable({ students }: { students: PreviewStudent[] }) {
   return (
-    <div className="max-h-[min(64vh,620px)] overflow-auto">
+    <div
+      className="w-full min-w-0 max-w-full max-h-[min(64vh,620px)] overflow-auto"
+      style={{ contain: "paint" }}
+    >
       <table className="min-w-[1072px] w-full border-separate border-spacing-0 text-sm">
         <thead className="sticky top-0 z-20">
           <tr className="bg-white text-left text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:bg-[#111111] dark:text-slate-400">
@@ -929,6 +1066,8 @@ function DashboardPreview({
   onClaim,
   onSignOut,
   onDeleteGroup,
+  fontStyle,
+  onFontStyleChange,
 }: {
   section: PortalSection;
   setSection: (section: PortalSection) => void;
@@ -946,6 +1085,8 @@ function DashboardPreview({
   onClaim: (assignment: string, days: number) => void;
   onSignOut: () => void;
   onDeleteGroup: () => void;
+  fontStyle: FontStyle;
+  onFontStyleChange: (value: FontStyle) => void;
 }) {
   return (
     <div className="min-h-screen pb-20 lg:pb-0">
@@ -998,6 +1139,7 @@ function DashboardPreview({
             >
               <LogOut className="h-4 w-4" />
             </Button>
+            <FontStyleSelector value={fontStyle} onChange={onFontStyleChange} />
             <ModeToggle />
             <Button
               variant="outline"
