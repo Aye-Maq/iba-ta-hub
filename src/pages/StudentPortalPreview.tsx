@@ -70,7 +70,7 @@ const fontPresets: Record<
 > = {
   modern: {
     label: "Modern",
-    heading: "'Manrope', sans-serif",
+    heading: "'Sora', sans-serif",
     body: "'Inter', sans-serif",
   },
   clean: {
@@ -276,7 +276,7 @@ export default function StudentPortalPreview() {
       link.id = linkId;
       link.rel = "stylesheet";
       link.href =
-        "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&display=swap";
+        "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&display=swap";
       document.head.appendChild(link);
     }
     return () => {
@@ -436,6 +436,7 @@ export default function StudentPortalPreview() {
   return (
     <div
       data-student-preview-root
+      data-font-style={fontStyle}
       style={
         {
           "--preview-heading-font": fontPresets[fontStyle].heading,
@@ -461,6 +462,15 @@ export default function StudentPortalPreview() {
         [data-student-preview-root] h5,
         [data-student-preview-root] h6 {
           font-family: var(--preview-heading-font);
+        }
+        [data-student-preview-root][data-font-style="modern"] h1,
+        [data-student-preview-root][data-font-style="modern"] h2,
+        [data-student-preview-root][data-font-style="modern"] h3,
+        [data-student-preview-root][data-font-style="modern"] h4,
+        [data-student-preview-root][data-font-style="modern"] h5,
+        [data-student-preview-root][data-font-style="modern"] h6 {
+          font-weight: 600;
+          letter-spacing: -0.02em;
         }
         [data-student-preview-root] code,
         [data-student-preview-root] .font-mono {
@@ -722,15 +732,15 @@ const attendanceStatusMeta: Record<
 > = {
   present: {
     label: "Present",
-    dot: "bg-[#39ff88] shadow-[0_0_0_1px_rgba(57,255,136,0.3),0_0_4px_rgba(57,255,136,0.55)]",
+    dot: "bg-[#39ff88] shadow-[0_0_0_1px_rgba(57,255,136,0.3),0_0_2px_rgba(57,255,136,0.55)]",
   },
   absent: {
     label: "Absent",
-    dot: "bg-[#ff4d5f] shadow-[0_0_0_1px_rgba(255,77,95,0.3),0_0_4px_rgba(255,77,95,0.5)]",
+    dot: "bg-[#ff4d5f] shadow-[0_0_0_1px_rgba(255,77,95,0.3),0_0_2px_rgba(255,77,95,0.5)]",
   },
   excused: {
     label: "Excused",
-    dot: "bg-[#ffd447] shadow-[0_0_0_1px_rgba(255,212,71,0.3),0_0_4px_rgba(255,212,71,0.5)]",
+    dot: "bg-[#ffd447] shadow-[0_0_0_1px_rgba(255,212,71,0.3),0_0_2px_rgba(255,212,71,0.5)]",
   },
   pending: { label: "Pending", dot: "bg-slate-500" },
 };
@@ -746,7 +756,7 @@ function AttendanceDot({ status }: { status: StudentStatus }) {
     >
       <span
         aria-hidden="true"
-        className={cn("h-2 w-2 rounded-full", meta.dot)}
+        className={cn("h-1.5 w-1.5 rounded-full", meta.dot)}
       />
       <span className="sr-only">{meta.label}</span>
     </span>
