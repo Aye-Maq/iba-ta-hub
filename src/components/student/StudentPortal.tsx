@@ -192,16 +192,6 @@ export default function StudentPortal() {
             )}
 
             <TabsContent value="attendance" className="mt-6">
-              {!ticketsEnabled && (
-                <Card className="mb-6 border-amber-300/60 bg-amber-50/50">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Ticketing is currently disabled</CardTitle>
-                    <CardDescription>
-                      Complaints/ticket submission is temporarily turned off by the TA team. Please email the TAs directly for support.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
               <AttendanceView />
             </TabsContent>
 
