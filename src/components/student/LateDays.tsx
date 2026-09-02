@@ -487,7 +487,7 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
         <CardHeader>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <CardTitle>Assignment Status</CardTitle>
+              <CardTitle className="mb-2">Assignment Status</CardTitle>
               <CardDescription>
                 Claiming late days always uses your remaining balance. If you are in a group, the claim also uses the shared group total.
               </CardDescription>
