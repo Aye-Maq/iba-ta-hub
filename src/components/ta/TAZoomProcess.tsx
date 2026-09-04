@@ -263,6 +263,7 @@ const extractPenaltyAppliedValue = (row: GenericRow): unknown => {
     'penalty_applied',
     'PenaltyApplied',
     'Penalty Applied (naming)',
+    'Name Penalty',
     'Naming Penalty',
   ]);
 
@@ -1185,7 +1186,7 @@ export default function TAZoomProcess({
   };
 
   return (
-    <div className="animate-fade-in space-y-8 pb-20  ta-module-shell">
+    <div className="ta-module-shell animate-fade-in space-y-6 pb-16 sm:space-y-8 sm:pb-20">
       <div className="space-y-1">
         <h2 className="text-3xl font-bold tracking-tight text-debossed">Zoom Processor</h2>
         <p className="text-base text-debossed-sm">Upload Zoom logs, review matches, and generate attendance.</p>
@@ -1193,12 +1194,12 @@ export default function TAZoomProcess({
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <Card className="neo-out border-0 md:col-span-2 shadow-none">
-          <CardHeader className="pb-4 border-b border-[#141517] mx-6 px-0 pt-6">
+          <CardHeader className="mx-4 border-b border-[#141517] px-0 pb-4 pt-4 sm:mx-6 sm:pt-6">
             <CardTitle className="flex items-center gap-3 text-[15px] font-semibold text-debossed">
               Upload & Match
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 pt-6">
+          <CardContent className="space-y-6 pt-4 sm:pt-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">Zoom Log</Label>
@@ -1314,12 +1315,12 @@ export default function TAZoomProcess({
         </Card>
 
         <Card className={`neo-out border-0 shadow-none ${step === 'upload' ? 'pointer-events-none opacity-50' : ''}`}>
-          <CardHeader className="pb-4 border-b border-[#141517] mx-6 px-0 pt-6">
+          <CardHeader className="mx-4 border-b border-[#141517] px-0 pb-4 pt-4 sm:mx-6 sm:pt-6">
             <CardTitle className="flex items-center gap-3 text-[15px] font-semibold text-debossed">
               Parameters
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5 pt-6">
+          <CardContent className="space-y-5 pt-4 sm:pt-6">
             <div className="space-y-2.5">
               <Label className="uppercase text-[11px] font-bold text-debossed-sm tracking-wider">Custom Duration (mins)</Label>
               <Input type="number" placeholder="Auto" value={manualDuration} onChange={(event) => setManualDuration(event.target.value)} className="neo-in h-12" />
@@ -1359,11 +1360,11 @@ export default function TAZoomProcess({
 
       {data && (
         <Card className="neo-out animate-fade-in border-0 mt-8 shadow-none">
-          <CardHeader className="pb-4 border-b border-[#141517] mx-6 px-0 pt-6">
+          <CardHeader className="mx-4 border-b border-[#141517] px-0 pb-4 pt-4 sm:mx-6 sm:pt-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
+              <div className="space-y-2">
                 <CardTitle className="text-[17px] font-semibold text-debossed">{step === 'review' ? 'Match Review' : 'Final Results'}</CardTitle>
-                <CardDescription className="text-debossed-sm mt-1">
+                <CardDescription className="text-debossed-sm">
                   {data.rows ?? normalizedRows.rawRows.length} records processed. {step === 'review' && 'Review matches before finalizing.'}
                 </CardDescription>
               </div>
@@ -1406,7 +1407,7 @@ export default function TAZoomProcess({
               </div>
             )}
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 sm:pt-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="mb-6 h-auto w-full justify-start overflow-x-auto neo-in p-1 border border-[#141517]">
                 {step === 'review' ? (

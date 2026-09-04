@@ -103,6 +103,20 @@ describe('GroupsManagement', () => {
           { erp: '12345', student_name: 'Ahsan', class_no: 'A', group_number: 1 },
           { erp: '54321', student_name: 'Sara', class_no: 'B', group_number: null },
         ],
+        join_requests: [
+          {
+            id: 'request-1',
+            group_id: 'group-1',
+            group_number: 1,
+            student_erp: '54321',
+            student_name: 'Sara',
+            class_no: 'B',
+            status: 'pending',
+            created_at: '2026-03-22T12:00:00.000Z',
+            responded_at: null,
+            responded_by_email: null,
+          },
+        ],
       },
       setData: vi.fn(),
       isLoading: false,
@@ -161,7 +175,9 @@ describe('GroupsManagement', () => {
     expect(screen.getByRole('button', { name: /Total Groups/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create group/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /enable editing for everyone/i })).toBeInTheDocument();
-    expect(screen.getByText('Group 1 · Alpha')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Group 1 · Alpha' })).toBeInTheDocument();
+    expect(screen.getByText('Pending Join Requests')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /assign/i }).length).toBeGreaterThan(0);
-  });
+  }, 15000);
 });

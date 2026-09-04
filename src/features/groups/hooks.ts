@@ -9,12 +9,15 @@ const EMPTY_STUDENT_STATE: StudentGroupState = {
   current_group_id: null,
   groups: [],
   roster: [],
+  my_join_request: null,
+  incoming_join_requests: [],
 };
 
 const EMPTY_ADMIN_STATE: GroupAdminState = {
   viewer_email: '',
   groups: [],
   roster: [],
+  join_requests: [],
 };
 
 export const useStudentGroupsState = (enabled: boolean) => {

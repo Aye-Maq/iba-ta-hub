@@ -477,7 +477,7 @@ export default function SessionManagement({
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {/* Session Number */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                         <label className="text-sm font-medium text-muted-foreground">Session Number</label>
                         <Input
                             placeholder="e.g. 1"
@@ -489,7 +489,7 @@ export default function SessionManagement({
                     </div>
 
                     {/* Date Picker */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                         <label className="text-sm font-medium text-muted-foreground">Date</label>
                         <Popover>
                             <PopoverTrigger asChild>
@@ -516,7 +516,7 @@ export default function SessionManagement({
                     </div>
 
                     {/* Day of Week */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <label className="text-sm font-medium text-muted-foreground">Day of Week</label>
                             {selectedDate && day && !useCustomDay && (
@@ -555,8 +555,8 @@ export default function SessionManagement({
                     </div>
 
                     {/* Time Inputs */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
                             <label className="text-sm font-medium text-muted-foreground">Start Time</label>
                             <div className="relative">
                                 <button
@@ -576,7 +576,7 @@ export default function SessionManagement({
                                 />
                             </div>
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <label className="text-sm font-medium text-muted-foreground">End Time</label>
                             <div className="relative">
                                 <button
@@ -682,7 +682,7 @@ export default function SessionManagement({
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <label className="text-sm font-medium">Session Number</label>
                             <Input
                                 type="number"
@@ -691,7 +691,7 @@ export default function SessionManagement({
                             />
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <label className="text-sm font-medium">Date</label>
                             <Popover>
                                 <PopoverTrigger asChild>
@@ -711,7 +711,7 @@ export default function SessionManagement({
                             </Popover>
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <label className="text-sm font-medium">Day of Week</label>
                             <Select value={editDay} onValueChange={setEditDay}>
                                 <SelectTrigger>
@@ -725,8 +725,8 @@ export default function SessionManagement({
                             </Select>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="space-y-2">
                                 <label className="text-sm font-medium">Start Time</label>
                                 <Input
                                     type="time"
@@ -734,7 +734,7 @@ export default function SessionManagement({
                                     onChange={e => setEditStartTime(e.target.value)}
                                 />
                             </div>
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                                 <label className="text-sm font-medium">End Time</label>
                                 <Input
                                     type="time"

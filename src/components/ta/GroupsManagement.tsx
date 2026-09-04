@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarClock, Loader2, Plus, RefreshCcw, Search, Trash2, Unlock, Users } from 'lucide-react';
+import { CalendarClock, Check, Download, Loader2, Plus, RefreshCcw, Search, Trash2, Unlock, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/date-format';
@@ -21,6 +21,8 @@ import {
   taSetGroupEditDeadlineAll,
   taSetGroupEditDeadlineSelected,
   taSetStudentGroup,
+  respondToGroupJoinRequest,
+  buildGroupsCsv,
   useGroupAdminState,
 } from '@/features/groups';
 import { listLateDaysAdminData } from '@/features/late-days';
@@ -456,6 +458,28 @@ export default function GroupsManagement({
     });
   };
 
+  const handleRespondToRequest = async (requestId: string, accept: boolean) => {
+    await runAction(`${accept ? 'accept' : 'decline'}-request-${requestId}`, async () => {
+      const result = await respondToGroupJoinRequest(requestId, accept);
+      if ('viewer_email' in result.state) setData(result.state);
+      toast.success(accept ? 'Join request approved.' : 'Join request declined.');
+    }).catch((error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to respond to group request.'));
+    });
+  };
+
+  const handleExportGroups = () => {
+    const blob = new Blob([buildGroupsCsv(data)], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `group_roster_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const handleRecompute = async () => {
     await runAction('recompute-all-groups', async () => {
       for (const group of data.groups) {
@@ -607,14 +631,14 @@ export default function GroupsManagement({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-8">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {METRICS.map((metric) => (
           <button
             key={metric.key}
             type="button"
             onClick={() => setActiveRosterFilter(metric.key)}
-            className={`neo-out rounded-[24px] border px-4 py-3 text-left transition ${
+            className={`neo-out h-full min-h-[88px] rounded-[24px] border p-4 text-left transition ${
               activeRosterFilter === metric.key ? 'border-primary/60 bg-primary/8' : ''
             }`}
           >
@@ -630,7 +654,7 @@ export default function GroupsManagement({
         <Card className="ta-module-card">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <CardTitle>Groups Overview</CardTitle>
                 <CardDescription>
                   Search groups, select them for bulk actions, and create new groups without using the roster list as a shared target.
@@ -639,6 +663,9 @@ export default function GroupsManagement({
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" title="Create group" onClick={openCreateDialog}>
                   <Plus className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" title="Download group roster CSV" onClick={handleExportGroups} disabled={data.roster.length === 0}>
+                  <Download className="h-4 w-4" />
                 </Button>
                 <div className="mx-1 h-7 w-px bg-border" />
                 <Button
@@ -774,6 +801,38 @@ export default function GroupsManagement({
           </CardContent>
         </Card>
 
+        <Card className="ta-module-card xl:col-span-2">
+          <CardHeader>
+            <CardTitle>Pending Join Requests</CardTitle>
+            <CardDescription>Approve or decline student requests. Acceptance is checked against the live group capacity.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(data.join_requests ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No pending requests.</p>
+            ) : (
+              <div className="space-y-2">
+                {(data.join_requests ?? []).map((request) => (
+                  <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3">
+                    <div className="text-sm">
+                      <div className="font-medium">{request.student_name} ({request.student_erp})</div>
+                      <div className="text-muted-foreground">Group {request.group_number} · Class {request.class_no}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => handleRespondToRequest(request.id, true)} disabled={busyAction?.includes(request.id)}>
+                        {busyAction === `accept-request-${request.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                        Approve
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleRespondToRequest(request.id, false)} disabled={busyAction?.includes(request.id)}>
+                        <X className="mr-2 h-4 w-4" /> Decline
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="ta-module-card">
           <CardHeader>
             <CardTitle>Individual Assignment</CardTitle>
@@ -828,7 +887,7 @@ export default function GroupsManagement({
                       <TableCell>
                         {entry.group_number !== null ? (
                           <Badge variant="outline">
-                            {getGroupHeading(entry.group_number, groupLookup.get(entry.group_number)?.display_name ?? null)}
+                            Group {entry.group_number}
                           </Badge>
                         ) : (
                           <Badge variant="secondary">Unassigned</Badge>

@@ -430,7 +430,7 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>{currentGroup ? 'Shared Late Days Left' : 'Late Days Left'}</CardDescription>
@@ -509,8 +509,8 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
             </div>
           )}
 
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
+          <div className="rounded-md border">
+            <Table className="min-w-[720px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Assignment</TableHead>
@@ -580,8 +580,8 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
           <CardDescription>Claims you personally made.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
+          <div className="rounded-md border">
+            <Table className="min-w-[720px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Assignment</TableHead>
@@ -626,8 +626,8 @@ export default function LateDays({ onSummaryChange }: LateDaysProps) {
             <CardDescription>Who in your group claimed late days, when they claimed, and how many days they used.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
+            <div className="rounded-md border">
+              <Table className="min-w-[560px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Assignment</TableHead>

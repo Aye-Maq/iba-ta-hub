@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Users, UserPlus, UserMinus, LogOut, Lock } from 'lucide-react';
+import { Loader2, Users, UserPlus, UserMinus, LogOut, Lock, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/date-format';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import {
-  studentAddGroupMember,
   studentCreateGroup,
   studentJoinGroup,
+  studentCancelGroupJoinRequest,
+  respondToGroupJoinRequest,
   studentLeaveGroup,
   studentRemoveGroupMember,
   useStudentGroupsState,
@@ -38,7 +39,6 @@ export default function Groups() {
   const { user } = useAuth();
   const { data, setData, isLoading, refetch } = useStudentGroupsState(Boolean(user?.email));
   const [createGroupNumber, setCreateGroupNumber] = useState('');
-  const [memberSearch, setMemberSearch] = useState('');
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,6 +51,7 @@ export default function Groups() {
       [
         { table: 'student_groups' },
         { table: 'student_group_members' },
+        { table: 'student_group_join_requests' },
       ],
       () => {
         void refetch();
@@ -71,24 +72,6 @@ export default function Groups() {
   const canManageMembers = Boolean(currentGroup && isCreator && !currentGroup.is_locked);
   const canLeaveGroup = Boolean(currentGroup && !currentGroup.is_locked);
   const creatorMustStay = Boolean(currentGroup && isCreator && currentGroup.member_count > 1);
-
-  const filteredAvailableMembers = useMemo(() => {
-    if (!currentGroup) {
-      return [];
-    }
-
-    const query = memberSearch.trim().toLowerCase();
-    return data.roster
-      .filter((entry) => entry.group_number === null && entry.erp !== data.student_erp)
-      .filter((entry) => {
-        if (!query) {
-          return true;
-        }
-        const haystack = `${entry.erp} ${entry.student_name} ${entry.class_no}`.toLowerCase();
-        return haystack.includes(query);
-      })
-      .slice(0, 8);
-  }, [currentGroup, data.roster, data.student_erp, memberSearch]);
 
   const joinableGroups = useMemo(
     () =>
@@ -126,20 +109,31 @@ export default function Groups() {
     await runAction(`join-${groupNumber}`, async () => {
       const result = await studentJoinGroup(groupNumber);
       setData(result.state);
-      toast.success(`Joined ${getGroupDisplayName(groupNumber)}.`);
+      toast.success(`Request sent to ${getGroupDisplayName(groupNumber)}.`);
     }).catch((error: unknown) => {
       toast.error(getErrorMessage(error, 'Failed to join group.'));
     });
   };
 
-  const handleAddMember = async (group: GroupSummary, studentErp: string) => {
-    await runAction(`add-${studentErp}`, async () => {
-      const result = await studentAddGroupMember(group.group_number, studentErp);
+  const handleCancelRequest = async () => {
+    if (!data.my_join_request) return;
+    await runAction('cancel-join-request', async () => {
+      const result = await studentCancelGroupJoinRequest(data.my_join_request!.id);
       setData(result.state);
-      setMemberSearch('');
-      toast.success(`Added ${studentErp} to ${getGroupDisplayName(group.group_number)}.`);
+      toast.success('Group request cancelled.');
     }).catch((error: unknown) => {
-      toast.error(getErrorMessage(error, 'Failed to add member.'));
+      toast.error(getErrorMessage(error, 'Failed to cancel group request.'));
+    });
+  };
+
+  const handleRespondToRequest = async (requestId: string, accept: boolean) => {
+    await runAction(`${accept ? 'accept' : 'decline'}-request-${requestId}`, async () => {
+      const result = await respondToGroupJoinRequest(requestId, accept);
+      if ('student_email' in result.state) setData(result.state);
+      else await refetch();
+      toast.success(accept ? 'Join request approved.' : 'Join request declined.');
+    }).catch((error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to respond to group request.'));
     });
   };
 
@@ -172,22 +166,22 @@ export default function Groups() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-8">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="h-full">
+          <CardHeader className="h-full p-5">
             <CardDescription>Your Group</CardDescription>
-            <CardTitle>{currentGroup ? getGroupDisplayName(currentGroup.group_number) : 'Ungrouped'}</CardTitle>
+            <CardTitle>{currentGroup ? getGroupDisplayName(currentGroup.group_number) : data.my_join_request ? 'Request pending' : 'Ungrouped'}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="h-full">
+          <CardHeader className="h-full p-5">
             <CardDescription>Editable Until</CardDescription>
-            <CardTitle>{currentGroup ? formatDate(currentGroup.student_edit_locked_at, 'PPP p') : '-'}</CardTitle>
+            <CardTitle>{currentGroup ? formatDate(currentGroup.student_edit_locked_at, 'PPP p') : 'Not assigned'}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="h-full">
+          <CardHeader className="h-full p-5">
             <CardDescription>Open Groups</CardDescription>
             <CardTitle>{joinableGroups.length}</CardTitle>
           </CardHeader>
@@ -208,9 +202,9 @@ export default function Groups() {
                     ? 'This group is locked for student edits. Only TAs can change membership now.'
                     : isCreator
                       ? creatorMustStay
-                        ? 'You created this group. You can add or remove members until the lock time, but you must stay until the group has no other members.'
-                        : 'You created this group. You can add or remove members until the lock time.'
-                      : 'You can stay in this group or leave it until the lock time. Only the creator can add or remove other members.'}
+                         ? 'You created this group. You can review join requests until the lock time, but you must stay until the group has no other members.'
+                         : 'You created this group. You can review join requests until the lock time.'
+                       : 'You can stay in this group or leave it until the lock time. Only the creator can review join requests.'}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -285,19 +279,14 @@ export default function Groups() {
               </Table>
             </div>
 
-            {canManageMembers && currentGroup.member_count < MEMBER_LIMIT && (
+            {isCreator && (
               <div className="space-y-4">
-                <div className="space-y-1">
-                  <h3 className="font-semibold">Add Members</h3>
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Join Requests</h3>
                   <p className="text-sm text-muted-foreground">
-                    Only ungrouped students can be added here. Once the lock time passes, only TAs can change membership.
+                    Students must request to join. Review requests below; only TAs can directly assign students.
                   </p>
                 </div>
-                <Input
-                  placeholder="Search ungrouped students by ERP, name, or class"
-                  value={memberSearch}
-                  onChange={(event) => setMemberSearch(event.target.value)}
-                />
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -305,38 +294,41 @@ export default function Groups() {
                         <TableHead>ERP</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Class</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredAvailableMembers.length === 0 ? (
+                      {(data.incoming_join_requests ?? []).length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
-                            No ungrouped students match this search.
+                            No pending join requests.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredAvailableMembers.map((entry) => (
-                          <TableRow key={entry.erp}>
-                            <TableCell className="font-medium">{entry.erp}</TableCell>
-                            <TableCell>{entry.student_name}</TableCell>
-                            <TableCell>{entry.class_no}</TableCell>
+                        (data.incoming_join_requests ?? []).map((request) => {
+                          return (
+                          <TableRow key={request.id}>
+                            <TableCell className="font-medium">{request.student_erp}</TableCell>
+                            <TableCell>{request.student_name}</TableCell>
+                            <TableCell>{request.class_no}</TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                onClick={() => handleAddMember(currentGroup, entry.erp)}
-                                disabled={busyAction === `add-${entry.erp}`}
-                              >
-                                {busyAction === `add-${entry.erp}` ? (
+                              <div className="inline-flex gap-2">
+                              <Button size="sm" onClick={() => handleRespondToRequest(request.id, true)} disabled={busyAction?.includes(request.id)}>
+                                {busyAction === `accept-request-${request.id}` ? (
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
-                                  <UserPlus className="mr-2 h-4 w-4" />
+                                  <Check className="mr-2 h-4 w-4" />
                                 )}
-                                Add
+                                Approve
                               </Button>
+                              <Button size="sm" variant="outline" onClick={() => handleRespondToRequest(request.id, false)} disabled={busyAction?.includes(request.id)}>
+                                <X className="mr-2 h-4 w-4" /> Decline
+                              </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
-                        ))
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -388,7 +380,7 @@ export default function Groups() {
                     </TableRow>
                   ) : (
                     data.groups.map((group) => {
-                      const canJoin = !group.is_locked && group.member_count < MEMBER_LIMIT;
+                      const canJoin = !group.is_locked && group.member_count < MEMBER_LIMIT && !data.my_join_request;
                       return (
                         <TableRow key={group.id}>
                           <TableCell className="font-medium">{getGroupDisplayName(group.group_number)}</TableCell>
@@ -403,7 +395,7 @@ export default function Groups() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleJoinGroup(group.group_number)}
+                               onClick={() => handleJoinGroup(group.group_number)}
                               disabled={!canJoin || busyAction === `join-${group.group_number}`}
                             >
                               {busyAction === `join-${group.group_number}` ? (
@@ -411,7 +403,7 @@ export default function Groups() {
                               ) : (
                                 <UserPlus className="mr-2 h-4 w-4" />
                               )}
-                              Join
+                              {data.my_join_request?.group_number === group.group_number ? 'Requested' : 'Request to Join'}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -421,6 +413,16 @@ export default function Groups() {
                 </TableBody>
               </Table>
             </div>
+
+            {data.my_join_request ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 p-4 text-sm">
+                <span>Request pending for {getGroupDisplayName(data.my_join_request.group_number)}. The group creator or a TA must approve it.</span>
+                <Button variant="outline" size="sm" onClick={handleCancelRequest} disabled={busyAction === 'cancel-join-request'}>
+                  {busyAction === 'cancel-join-request' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Cancel request
+                </Button>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       )}

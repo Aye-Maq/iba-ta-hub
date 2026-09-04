@@ -108,7 +108,7 @@ export default function PublicAttendanceBoard() {
     <Card>
       <CardHeader>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="space-y-2">
             <CardTitle>Attendance Board</CardTitle>
             <CardDescription>Session-wise attendance and total penalties for all students</CardDescription>
           </div>
@@ -129,13 +129,13 @@ export default function PublicAttendanceBoard() {
           <span><span className="font-semibold text-red-600">A</span> Absent</span>
           <span><span className="font-semibold text-yellow-600">E</span> Excused</span>
           <span className="w-full">
-            <span className="font-semibold text-destructive">Naming Penalty:</span>{' '}
-            Naming penalties apply when you have the wrong formatted name during your Zoom meeting.
+            <span className="font-semibold text-destructive">Name Penalty:</span>{' '}
+            Name penalties apply when your Zoom display name does not follow the required format.
           </span>
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="p-4 sm:p-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -153,19 +153,27 @@ export default function PublicAttendanceBoard() {
             No attendance records are available yet.
           </div>
         ) : (
-          <div className="rounded-md border max-h-[70vh] overflow-auto">
-            <Table>
-              <TableHeader>
+          <div className="max-h-[70vh] overflow-y-auto rounded-md border">
+            <Table className="min-w-max table-fixed">
+              <colgroup>
+                <col className="w-[72px] sm:w-[88px]" />
+                <col className="w-[144px] sm:w-[216px]" />
+                <col className="w-[88px] sm:w-[112px]" />
+                <col className="w-[120px]" />
+                <col className="w-[104px]" />
+                {sessions.map((session) => <col key={session.id} className="w-[64px] sm:w-[72px]" />)}
+              </colgroup>
+              <TableHeader className="sticky top-0 z-30 bg-card [&_th]:bg-card">
                 <TableRow>
-                  <TableHead className="sticky left-0 z-20 w-[90px] bg-background">Class</TableHead>
-                  <TableHead className="sticky left-[90px] z-20 w-[220px] bg-background">Name</TableHead>
-                  <TableHead className="sticky left-[310px] z-20 w-[110px] bg-background">ERP</TableHead>
-                  <TableHead className="w-[110px] text-center">Naming Penalty</TableHead>
-                  <TableHead className="w-[100px] text-center">Absences</TableHead>
+                  <TableHead className="sticky left-0 z-40 w-[72px] bg-card sm:w-[88px]">Class</TableHead>
+                  <TableHead className="sticky left-[72px] z-40 w-[144px] bg-card sm:left-[88px] sm:w-[216px]">Name</TableHead>
+                  <TableHead className="sticky left-[216px] z-40 w-[88px] bg-card sm:left-[304px] sm:w-[112px]">ERP</TableHead>
+                  <TableHead className="w-[120px] text-center">Name Penalty</TableHead>
+                  <TableHead className="w-[104px] text-center">Absences</TableHead>
                   {sessions.map((session) => (
                     <TableHead
                       key={session.id}
-                      className="w-[70px] text-center"
+                      className="w-[64px] text-center sm:w-[72px]"
                       title={formatSessionHint(session)}
                     >
                       S{session.session_number}
@@ -184,9 +192,9 @@ export default function PublicAttendanceBoard() {
                 ) : (
                   filteredStudents.map((student) => (
                     <TableRow key={student.erp}>
-                      <TableCell className="sticky left-0 z-10 bg-background font-medium">{student.class_no}</TableCell>
-                      <TableCell className="sticky left-[90px] z-10 bg-background">{student.student_name}</TableCell>
-                      <TableCell className="sticky left-[310px] z-10 bg-background font-mono text-xs">{student.erp}</TableCell>
+                      <TableCell className="sticky left-0 z-10 w-[72px] bg-card text-xs font-medium sm:w-[88px]">{student.class_no}</TableCell>
+                      <TableCell className="sticky left-[72px] z-10 w-[144px] max-w-[144px] truncate bg-card sm:left-[88px] sm:w-[216px] sm:max-w-[216px]">{student.student_name}</TableCell>
+                      <TableCell className="sticky left-[216px] z-10 w-[88px] bg-card font-mono text-xs sm:left-[304px] sm:w-[112px]">{student.erp}</TableCell>
                       <TableCell
                         className={`text-center font-semibold ${
                           student.total_penalties > 0 ? 'text-destructive' : 'text-muted-foreground'

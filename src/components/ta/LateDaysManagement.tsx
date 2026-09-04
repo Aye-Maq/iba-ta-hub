@@ -980,7 +980,7 @@ export default function LateDaysManagement({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-md border bg-muted/20 p-3">
                   <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Source</div>
-                  <div className="mt-1 font-medium">
+                  <div className="mt-2 font-medium">
                     {selectedClaim.claimed_by_email !== selectedClaim.student_email
                       ? 'TA on behalf of student'
                       : selectedClaim.group_id
@@ -990,23 +990,23 @@ export default function LateDaysManagement({
                 </div>
                 <div className="rounded-md border bg-muted/20 p-3">
                   <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Days Used</div>
-                  <div className="mt-1 font-medium">{selectedClaim.days_used}</div>
+                  <div className="mt-2 font-medium">{selectedClaim.days_used}</div>
                 </div>
                 <div className="rounded-md border bg-muted/20 p-3">
                   <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Claimed At</div>
-                  <div className="mt-1 font-medium">{formatDate(selectedClaim.claimed_at, 'PPP p')}</div>
+                  <div className="mt-2 font-medium">{formatDate(selectedClaim.claimed_at, 'PPP p')}</div>
                 </div>
                 <div className="rounded-md border bg-muted/20 p-3">
                   <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Previous Due</div>
-                  <div className="mt-1 font-medium">{formatDate(selectedClaim.due_at_before_claim, 'PPP p')}</div>
+                  <div className="mt-2 font-medium">{formatDate(selectedClaim.due_at_before_claim, 'PPP p')}</div>
                 </div>
                 <div className="rounded-md border bg-muted/20 p-3">
                   <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">New Due</div>
-                  <div className="mt-1 font-medium">{formatDate(selectedClaim.due_at_after_claim, 'PPP p')}</div>
+                  <div className="mt-2 font-medium">{formatDate(selectedClaim.due_at_after_claim, 'PPP p')}</div>
                 </div>
                 <div className="rounded-md border bg-muted/20 p-3">
                   <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Actor Email</div>
-                  <div className="mt-1 font-medium break-all">{selectedClaim.claimed_by_email}</div>
+                  <div className="mt-2 font-medium break-all">{selectedClaim.claimed_by_email}</div>
                 </div>
               </div>
             </div>
@@ -1048,7 +1048,7 @@ export default function LateDaysManagement({
                 <div className="text-muted-foreground">
                   {claimTarget.class_no} · {claimTarget.erp}
                 </div>
-                <div className="mt-1 text-muted-foreground">
+                <div className="mt-2 text-muted-foreground">
                   Remaining balance: {claimTargetBalance.remaining}
                 </div>
               </div>
@@ -1095,7 +1095,7 @@ export default function LateDaysManagement({
               {selectedClaimAssignment ? (
                 <div className="rounded-md border bg-muted/20 p-3 text-sm">
                   <div>Current due date: {formatDate(selectedClaimAssignment.currentDeadline, 'PPP p', 'Not set by TA')}</div>
-                  <div className="mt-1">
+                  <div className="mt-2">
                     Remaining after claim: {Math.max(claimTargetBalance.remaining - Number(claimDays || '1'), 0)}
                   </div>
                 </div>

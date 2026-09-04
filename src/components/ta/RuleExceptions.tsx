@@ -434,7 +434,7 @@ export default function RuleExceptions({
             <Card className="ta-module-card">
                 <CardHeader>
                     <div className="flex justify-between items-center">
-                        <div>
+                        <div className="space-y-2">
                             <CardTitle>Rule Exceptions</CardTitle>
                             <CardDescription>Manage special cases like camera exemptions.</CardDescription>
                         </div>
@@ -550,7 +550,7 @@ export default function RuleExceptions({
             <Card className="ta-module-card">
                 <CardHeader>
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
+                        <div className="space-y-2">
                             <CardTitle>Camera Closed Tracker</CardTitle>
                             <CardDescription>
                                 Search roster students and mark <span className="font-medium">Warned</span> to start a live 5-minute countdown.

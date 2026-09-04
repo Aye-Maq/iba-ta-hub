@@ -28,7 +28,7 @@ export default function AttendanceView() {
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg">Total Absences</CardTitle>
@@ -49,7 +49,7 @@ export default function AttendanceView() {
                 </Card>
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Naming Penalties</CardTitle>
+                        <CardTitle className="text-lg">Name Penalties</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-4xl font-bold text-destructive">-{totalNamingPenalties}</div>
@@ -64,14 +64,14 @@ export default function AttendanceView() {
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-md border overflow-x-auto">
-                        <Table>
+                        <Table className="min-w-[640px]">
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Session #</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Day</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Naming Penalty</TableHead>
+                                    <TableHead className="text-right">Name Penalty</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -95,7 +95,7 @@ export default function AttendanceView() {
                                             <TableCell className="text-right">
                                                 {record.naming_penalty && (
                                                     <Badge variant="destructive" className="ml-auto">
-                                                        Naming penalty (-1)
+                                                        Name penalty (-1)
                                                     </Badge>
                                                 )}
                                             </TableCell>

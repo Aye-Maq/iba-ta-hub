@@ -381,7 +381,7 @@ const buildZoomResultsContext = (stageSuffix: string): ScreenContextSummary => {
     description: `This is the finalized Zoom results screen. You are currently on the ${activeTab}.`,
     visibleControls: ['Attendance', 'Absent', 'Penalties', 'Matches', 'Issues', 'Unidentified', 'Raw Zoom Log', 'Copy Absent ERPs'],
     primaryAction: activeTab.toLowerCase().includes('absent') ? 'Copy Absent ERPs' : 'Absent',
-    nextSteps: ['Open `Absent` to verify the ERP list.', 'Use `Copy Absent ERPs` before switching to `Live Attendance`.', 'Review `Penalties` if naming penalties need manual follow-up.'],
+    nextSteps: ['Open `Absent` to verify the ERP list.', 'Use `Copy Absent ERPs` before switching to `Live Attendance`.', 'Review `Penalties` if name penalties need manual follow-up.'],
   };
 };
 
@@ -724,7 +724,7 @@ const inferWorkflowIntent = (question: string): ResolvedConversationIntent | nul
     );
   }
 
-  if (/fix penalties|naming penalty|naming penalties/.test(normalized)) {
+  if (/fix penalties|name penalty|name penalties|naming penalty|naming penalties/.test(normalized)) {
     return buildRememberedIntent(
       { type: 'switch-attendance-tab', tab: 'attendance' },
       {
@@ -803,7 +803,7 @@ const buildFollowUpResponse = (rememberedIntent: ResolvedConversationIntent, act
       return buildPreparedResponse({
         done: ['Switched to `Live Attendance`.'],
         missing: ['Select the session first if it is not already loaded.'],
-        finalStepText: 'Use `Search Name or ERP` to find the student row, then update the naming penalty there.',
+        finalStepText: 'Use `Search Name or ERP` to find the student row, then update the name penalty there.',
       });
     case 'roster-add-student':
       return buildPreparedResponse({
@@ -931,13 +931,13 @@ const parseWorkflowIntentPlan = (
     });
   }
 
-  if (/fix penalties|fix penalty|naming penalties|naming penalty/.test(normalized)) {
+  if (/fix penalties|fix penalty|name penalties|name penalty|naming penalties|naming penalty/.test(normalized)) {
     return buildWorkflowIntentPlan({
       workflowId: 'attendance-penalties',
       action: { type: 'switch-attendance-tab', tab: 'attendance' },
       done: ['Switched to `Live Attendance`.'],
       missing: ['Select the session first if it is not already loaded.'],
-      finalStepText: 'Use `Search Name or ERP` to find the student row, then update the naming penalty there.',
+      finalStepText: 'Use `Search Name or ERP` to find the student row, then update the name penalty there.',
     });
   }
 
@@ -1417,7 +1417,7 @@ const parseZoomPlan = (question: string): HelpAssistantPlan | null => {
 const parseAttendancePlan = (question: string): HelpAssistantPlan | null => {
   const normalized = normalize(question);
 
-  if (/fix penalties|naming penalty|penalties/.test(normalized) && /place|where|fix|review|mark/.test(normalized)) {
+  if (/fix penalties|name penalty|name penalties|naming penalty|naming penalties|penalties/.test(normalized) && /place|where|fix|review|mark/.test(normalized)) {
     return {
       action: { type: 'switch-attendance-tab', tab: 'attendance' },
       response: buildPreparedResponse({

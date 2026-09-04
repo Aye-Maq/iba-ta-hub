@@ -466,7 +466,7 @@ export default function RosterManagement({
 
             <div className="grid gap-8 lg:grid-cols-12">
                 <div className="lg:col-span-4 space-y-6">
-                    <div className="neo-out ta-module-card p-6 rounded-2xl border shadow-none">
+                    <div className="neo-out ta-module-card rounded-2xl border p-4 shadow-none sm:p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-xl neo-in flex items-center justify-center text-debossed-sm">
                                 <Upload className="w-5 h-5" />
@@ -515,7 +515,7 @@ export default function RosterManagement({
 
                 <div className="lg:col-span-8 space-y-6">
                     <div className="neo-out ta-module-card rounded-2xl border shadow-none">
-                        <div className="p-6 border-b border-[#141517] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="flex flex-col items-start gap-4 border-b border-[#141517] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                             <div className="relative w-full sm:w-80 group">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-debossed-sm transition-colors" />
                                 <Input
@@ -603,7 +603,7 @@ export default function RosterManagement({
                                 onChange={e => setFormData({ ...formData, student_name: e.target.value })}
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-bold uppercase tracking-widest text-debossed-sm">ERP ID</Label>
                                 <Input

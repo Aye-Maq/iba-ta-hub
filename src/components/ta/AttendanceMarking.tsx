@@ -530,7 +530,7 @@ export default function AttendanceMarking({
     try {
       await updateAttendancePenalty(record.id, checked);
     } catch {
-      toast.error('Failed to update naming penalty');
+      toast.error('Failed to update name penalty');
       setAttendanceData((prev) => prev.map((row) => (row.id === record.id ? { ...row, naming_penalty: !checked } : row)));
       return;
     }
@@ -672,14 +672,14 @@ export default function AttendanceMarking({
 
       <Card className="md:col-span-2 ta-module-card">
         <CardHeader>
-          <div className="flex items-center justify-between space-x-2">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
               <CardTitle>Attendance List</CardTitle>
-              <CardDescription className="mt-1 text-xs text-muted-foreground">
+              <CardDescription className="text-xs text-muted-foreground">
                 Changes to status and penalties save automatically
               </CardDescription>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
               <Button ref={syncButtonRef} variant="outline" size="sm" onClick={handleManualSync} disabled={isSyncing || isSaving}>
                 {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Sync to Sheet
@@ -687,7 +687,7 @@ export default function AttendanceMarking({
               <Input
                 ref={searchInputRef}
                 placeholder="Search Name or ERP"
-                className="w-[150px]"
+                className="min-w-0 flex-1 sm:w-[150px] sm:flex-none"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
@@ -770,7 +770,7 @@ export default function AttendanceMarking({
                     <TableHead>Name</TableHead>
                     <TableHead>ERP</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Naming Penalty</TableHead>
+                    <TableHead>Name Penalty</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -789,6 +789,15 @@ export default function AttendanceMarking({
                                 : 'status-excused status-excused-table-text'
                           }`}
                           onClick={() => toggleStatus(record)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              toggleStatus(record);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Change attendance status for ${record.student_name}`}
                         >
                           {record.status.toUpperCase()}
                         </Badge>
@@ -798,6 +807,7 @@ export default function AttendanceMarking({
                           type="button"
                           onClick={() => toggleNamingPenalty(record, !record.naming_penalty)}
                           aria-pressed={record.naming_penalty}
+                          aria-label={`${record.naming_penalty ? 'Remove' : 'Apply'} name penalty for ${record.student_name}`}
                           className="flex items-center justify-end gap-4 pr-2 cursor-pointer active:scale-95 transition-transform w-full"
                         >
                           <div className="w-[18px] h-[18px] rounded-full neo-in relative flex items-center justify-center border border-[#141517]">

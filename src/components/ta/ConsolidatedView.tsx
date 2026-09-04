@@ -281,16 +281,16 @@ export default function ConsolidatedView({
     <div className="ta-module-shell">
       <Card className="h-full ta-module-card">
       <CardHeader>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
             <CardTitle>Consolidated View</CardTitle>
             <CardDescription>Full attendance sheet with penalties</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
             <Input
               ref={searchInputRef}
               placeholder="Search..."
-              className="w-[220px]"
+              className="min-w-0 flex-1 md:w-[220px] md:flex-none"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
@@ -314,13 +314,13 @@ export default function ConsolidatedView({
         ) : (
           <TooltipProvider delayDuration={0}>
             <Table containerClassName="max-h-[600px]">
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20">
                 <TableRow>
-                  <TableHead className="sticky left-0 z-10 w-[100px]">Class</TableHead>
-                  <TableHead className="sticky left-[100px] z-10 w-[200px]">Name</TableHead>
-                  <TableHead className="w-[100px]">ERP</TableHead>
-                  <TableHead className="w-[80px] text-center font-bold status-absent-table-text">Penalties</TableHead>
-                  <TableHead className="w-[80px] text-center font-bold">Absences</TableHead>
+                  <TableHead className="sticky left-0 z-30 w-[96px] min-w-[96px] max-w-[96px]">Class</TableHead>
+                  <TableHead className="sticky left-[96px] z-30 w-[220px] min-w-[220px] max-w-[220px]">Name</TableHead>
+                  <TableHead className="w-[112px] min-w-[112px] max-w-[112px]">ERP</TableHead>
+                  <TableHead className="w-[112px] min-w-[112px] text-center font-bold status-absent-table-text">Name Penalty</TableHead>
+                  <TableHead className="w-[96px] min-w-[96px] text-center font-bold">Absences</TableHead>
                   {sessions.map((session) => (
                     <TableHead key={session.id} className="w-[60px] text-center">
                       S{session.session_number}
@@ -345,9 +345,11 @@ export default function ConsolidatedView({
 
                   return (
                     <TableRow key={student.erp}>
-                      <TableCell className="sticky left-0 font-medium">{student.class_no}</TableCell>
-                      <TableCell className="sticky left-[100px]">{student.student_name}</TableCell>
-                      <TableCell>{student.erp}</TableCell>
+                      <TableCell className="sticky left-0 z-10 w-[96px] min-w-[96px] max-w-[96px] font-medium">{student.class_no}</TableCell>
+                      <TableCell className="sticky left-[96px] z-10 w-[220px] min-w-[220px] max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap">
+                        <span className="block truncate">{student.student_name}</span>
+                      </TableCell>
+                      <TableCell className="w-[112px] min-w-[112px] max-w-[112px]">{student.erp}</TableCell>
                       <TableCell className={`text-center font-bold ${hasPenalties ? 'status-absent-table-text' : ''}`}>
                         {hasPenalties ? (
                           <Tooltip>

@@ -385,7 +385,7 @@ export default function IssueManagement({
                 </div>
             </div>
 
-            <div className="neo-out ta-module-card rounded-2xl border border-[#111214] overflow-hidden">
+            <div className="neo-out ta-module-card overflow-hidden rounded-2xl border border-[#111214]">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-20">
                         <Loader2 className="h-10 w-10 animate-spin text-debossed-sm" />
