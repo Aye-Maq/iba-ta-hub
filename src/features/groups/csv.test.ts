@@ -12,6 +12,15 @@ describe('buildGroupsCsv', () => {
       ],
     });
 
-    expect(csv).toBe(['Group No,ERP,Full Name', '1,1,A One', ',2,"B, Two"', ',3,Ungrouped'].join('\n'));
+    expect(csv).toBe(['Group No,ERP,Full Name', '1,1,A One', ',2,"B, Two"'].join('\n'));
+  });
+
+  it('does not export ungrouped roster students', () => {
+    const csv = buildGroupsCsv({
+      groups: [],
+      roster: [{ erp: '3', student_name: 'Ungrouped', class_no: 'C', group_number: null }],
+    });
+
+    expect(csv).toBe('Group No,ERP,Full Name');
   });
 });

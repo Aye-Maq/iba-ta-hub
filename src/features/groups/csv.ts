@@ -7,9 +7,9 @@ const csvCell = (value: string | number | null) => {
 
 /** Build the compact group roster export expected by the TA workflow. */
 export const buildGroupsCsv = (state: Pick<GroupAdminState, 'groups' | 'roster'>): string => {
-  const rows = [...state.roster].sort((a, b) => {
-    if (a.group_number === null) return b.group_number === null ? a.erp.localeCompare(b.erp) : 1;
-    if (b.group_number === null) return -1;
+  // The export is a grouped roster, so students without a group do not belong
+  // in it. Keep the existing deterministic ordering within each group.
+  const rows = state.roster.filter((entry) => entry.group_number !== null).sort((a, b) => {
     return a.group_number - b.group_number || a.class_no.localeCompare(b.class_no) || a.student_name.localeCompare(b.student_name);
   });
   const seenGroups = new Set<number>();
