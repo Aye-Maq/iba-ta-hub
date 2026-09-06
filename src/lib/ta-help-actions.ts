@@ -221,9 +221,11 @@ const MODULE_ALIASES: Array<{ module: TAHelpModuleId; aliases: string[] }> = [
   { module: 'groups', aliases: ['groups', 'group management', 'student groups', 'group tab'] },
   { module: 'late-days', aliases: ['late days', 'late day', 'claims'] },
   { module: 'export', aliases: ['export data', 'export', 'download attendance'] },
-  { module: 'issues', aliases: ['issue queue', 'issue tracker', 'issues', 'tickets', 'ticket'] },
   { module: 'settings', aliases: ['lists & settings', 'lists and settings', 'settings', 'ta management', 'submission list'] },
 ];
+
+const ISSUE_QUEUE_UNAVAILABLE_RESPONSE =
+  'Issue Queue is currently unavailable in this portal. I can help with the available TA modules instead.';
 
 const DIRECT_ACTION_PREFIX =
   /^(please\s+)?(can you\s+)?(go to|open|take me to|navigate to|switch to|show me|bring up|prepare|set up|setup|create|make|fill|add|mark|grant|search|find|download)\b/i;
@@ -902,6 +904,14 @@ const parseFollowUpPlan = (
     };
   }
 
+  if (rememberedIntent.moduleId === 'issues') {
+    return {
+      action: null,
+      response: ISSUE_QUEUE_UNAVAILABLE_RESPONSE,
+      rememberedIntent: null,
+    };
+  }
+
   return {
     action: rememberedIntent.nextAction,
     response: buildFollowUpResponse(rememberedIntent, rememberedIntent.nextAction),
@@ -1147,73 +1157,7 @@ const parseIssuePlan = (question: string): HelpAssistantPlan | null => {
     return null;
   }
 
-  if (/grading/.test(normalized)) {
-    return {
-      action: { type: 'issue-queue-command', command: { kind: 'filter', group: 'grading_query', status: 'all' } },
-      response: buildPreparedResponse({
-        done: ['Opened `Issue Queue`.', 'Prepared the ticket filters for grading queries.'],
-        finalButton: null,
-      }),
-    };
-  }
-
-  if (/penalt/.test(normalized)) {
-    return {
-      action: { type: 'issue-queue-command', command: { kind: 'filter', group: 'penalty_query', status: 'all' } },
-      response: buildPreparedResponse({
-        done: ['Opened `Issue Queue`.', 'Prepared the ticket filters for penalty queries.'],
-        finalButton: null,
-      }),
-    };
-  }
-
-  if (/absence/.test(normalized)) {
-    return {
-      action: { type: 'issue-queue-command', command: { kind: 'filter', group: 'absence_query', status: 'all' } },
-      response: buildPreparedResponse({
-        done: ['Opened `Issue Queue`.', 'Prepared the ticket filters for absence queries.'],
-        finalButton: null,
-      }),
-    };
-  }
-
-  if (/resolve ticket|reopen ticket|escalate/.test(normalized)) {
-    const query = extractErp(question) ?? sanitizeNamedEntity(extractNamedEntity(question));
-    if (!query) {
-      return {
-        action: { type: 'issue-queue-command', command: { kind: 'filter', status: 'pending', group: 'all' } },
-        response: buildSearchOrMissingResponse('issues', 'Tell me the student ERP or name so I can prepare the correct ticket.'),
-      };
-    }
-
-    if (/escalate/.test(normalized)) {
-      return {
-        action: { type: 'issue-queue-command', command: { kind: 'prepare-escalate-ticket', query } },
-        response: buildPreparedResponse({
-          done: ['Opened `Issue Queue`.', `Searched for the ticket using \`${query}\`.`, 'If there is a unique match, the ticket sheet will open and the escalation control will be ready.'],
-          missing: ['If multiple tickets match, refine the request with the ERP or category.'],
-          finalButton: 'Escalate to Exception',
-        }),
-      };
-    }
-
-    return {
-      action: { type: 'issue-queue-command', command: { kind: 'prepare-resolve-ticket', query } },
-      response: buildPreparedResponse({
-        done: ['Opened `Issue Queue`.', `Searched for the ticket using \`${query}\`.`, 'If there is a unique match, the ticket sheet will open and the status action will be ready.'],
-        missing: ['If multiple tickets match, refine the request with the ERP or category.'],
-        finalButton: 'Resolve Ticket',
-      }),
-    };
-  }
-
-  return {
-    action: { type: 'open-module', module: 'issues' },
-    response: buildPreparedResponse({
-      done: ['Opened `Issue Queue`.'],
-      finalButton: null,
-    }),
-  };
+  return { action: null, response: ISSUE_QUEUE_UNAVAILABLE_RESPONSE, rememberedIntent: null };
 };
 
 const parseGroupsPlan = (question: string): HelpAssistantPlan | null => {

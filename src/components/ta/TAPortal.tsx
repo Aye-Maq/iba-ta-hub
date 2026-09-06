@@ -8,7 +8,6 @@ import {
   Download,
   Layers,
   LogOut,
-  MessageSquare,
   Settings,
   ShieldAlert,
   Users,
@@ -115,7 +114,6 @@ const MODULES: ModuleConfig[] = [
   { id: 'sessions', title: 'Session Management', description: 'Configure session calendar and timing rules', icon: CalendarDays, colSpan: 1 },
   { id: 'exceptions', title: 'Rule Exceptions', description: 'Manage approved exceptions and overrides', icon: ShieldAlert, colSpan: 1 },
   { id: 'late-days', title: 'Late Days', description: 'Configure late-day allowances and windows', icon: Clock3, colSpan: 1 },
-  { id: 'issues', title: 'Issue Queue', description: 'Track and resolve attendance issues', icon: MessageSquare, colSpan: 1 },
   { id: 'export', title: 'Export Data', description: 'Generate and export attendance reports', icon: Download, colSpan: 1 },
   { id: 'settings', title: 'Lists & Settings', description: 'Manage access and submission lists', icon: Settings, colSpan: 2 },
 ];
@@ -364,6 +362,15 @@ export default function TAPortal() {
   };
 
   const handleOpenModule = (module: PortalModule) => {
+    if (module === 'issues') {
+      setIssueQueueAgentCommand(null);
+      if (activeModule === 'issues') {
+        setActiveModule(null);
+        setHelpModuleStage(null);
+      }
+      return;
+    }
+
     clearPendingCommands();
     setHelpSnapshotDetails({});
     setHelpModuleStage(getImmediateStageForModule(module, attendanceWorkspaceTab));
@@ -482,17 +489,13 @@ export default function TAPortal() {
         setRuleExceptionsAgentCommand(makeCommandEnvelope(action.command, nextCommandToken()));
         return;
       case 'issue-queue-command':
-        setHelpModuleStage(
-          action.command.kind === 'open-ticket' ||
-          action.command.kind === 'prepare-resolve-ticket' ||
-          action.command.kind === 'prepare-escalate-ticket' ||
-          action.command.kind === 'prepare-delete-ticket' ||
-          action.command.kind === 'prefill-response'
-            ? 'Issue Queue · ticket sheet open'
-            : 'Issue Queue · filtered list',
-        );
-        setActiveModule('issues');
-        setIssueQueueAgentCommand(makeCommandEnvelope(action.command, nextCommandToken()));
+        // Issue Queue is intentionally unavailable in the current TA portal.
+        // Keep the implementation mounted only behind the future re-enable path.
+        setIssueQueueAgentCommand(null);
+        if (activeModule === 'issues') {
+          setActiveModule(null);
+          setHelpModuleStage(null);
+        }
         return;
       case 'late-days-command':
         setHelpModuleStage(

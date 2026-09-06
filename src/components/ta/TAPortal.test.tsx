@@ -113,4 +113,22 @@ describe('TAPortal persistence', () => {
     expect(zoomCard.querySelector('.ta-dashboard-icon-glow--base')).toBeTruthy();
     expect(zoomCard.querySelector('.ta-dashboard-icon-glow--hover')).toBeTruthy();
   });
+
+  it('hides Issue Queue and falls back to the dashboard when it was previously persisted', async () => {
+    window.sessionStorage.setItem(
+      'aamd-workspace:ta:ayeshamaqsood5100@gmail.com:active-module',
+      JSON.stringify('issues'),
+    );
+
+    render(
+      <MemoryRouter>
+        <TAPortal />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('TA Dashboard')).toBeInTheDocument();
+    expect(screen.queryByText('Issue Queue')).not.toBeInTheDocument();
+    expect(screen.queryByText('Issue Management Mock')).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem('aamd-workspace:ta:ayeshamaqsood5100@gmail.com:active-module')).toBe('null');
+  });
 });

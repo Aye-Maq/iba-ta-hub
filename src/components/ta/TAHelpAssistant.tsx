@@ -36,7 +36,6 @@ const TA_MODULE_NAMES = [
   'Session Management',
   'Rule Exceptions',
   'Late Days',
-  'Issue Queue',
   'Export Data',
   'Lists & Settings',
 ];
