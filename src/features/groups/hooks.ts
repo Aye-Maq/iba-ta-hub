@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toAppError, type AppError } from '@/shared/errors';
+import { useRefreshController } from '@/hooks/use-refresh-controller';
 import { getStudentGroupsState, listGroupAdminState } from './api';
 import type { GroupAdminState, StudentGroupState } from './types';
 
@@ -24,60 +25,70 @@ export const useStudentGroupsState = (enabled: boolean) => {
   const [data, setData] = useState<StudentGroupState>(EMPTY_STUDENT_STATE);
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<AppError | null>(null);
+  const hasLoadedOnceRef = useRef(false);
 
-  const refetch = useCallback(async () => {
+  const fetchData = useCallback(async (mode: 'initial' | 'background') => {
+    const showInitialLoader = mode === 'initial' && !hasLoadedOnceRef.current;
+    if (showInitialLoader) setIsLoading(true);
+    setError(null);
+    try {
+      setData(await getStudentGroupsState());
+      hasLoadedOnceRef.current = true;
+    } catch (err) {
+      setError(toAppError(err, 'student_groups_state_fetch_failed'));
+    } finally {
+      if (showInitialLoader) setIsLoading(false);
+    }
+  }, []);
+
+  const { requestRefresh, isUpdating } = useRefreshController(fetchData, enabled);
+
+  const refetch = useCallback(() => requestRefresh('background'), [requestRefresh]);
+
+  useEffect(() => {
     if (!enabled) {
       setData(EMPTY_STUDENT_STATE);
       setIsLoading(false);
       return;
     }
+    void requestRefresh('initial');
+  }, [enabled, requestRefresh]);
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      setData(await getStudentGroupsState());
-    } catch (err) {
-      setError(toAppError(err, 'student_groups_state_fetch_failed'));
-      setData(EMPTY_STUDENT_STATE);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [enabled]);
-
-  useEffect(() => {
-    void refetch();
-  }, [refetch]);
-
-  return { data, setData, isLoading, error, refetch };
+  return { data, setData, isLoading, isUpdating, error, refetch };
 };
 
 export const useGroupAdminState = (enabled = true) => {
   const [data, setData] = useState<GroupAdminState>(EMPTY_ADMIN_STATE);
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<AppError | null>(null);
+  const hasLoadedOnceRef = useRef(false);
 
-  const refetch = useCallback(async () => {
+  const fetchData = useCallback(async (mode: 'initial' | 'background') => {
+    const showInitialLoader = mode === 'initial' && !hasLoadedOnceRef.current;
+    if (showInitialLoader) setIsLoading(true);
+    setError(null);
+    try {
+      setData(await listGroupAdminState());
+      hasLoadedOnceRef.current = true;
+    } catch (err) {
+      setError(toAppError(err, 'group_admin_state_fetch_failed'));
+    } finally {
+      if (showInitialLoader) setIsLoading(false);
+    }
+  }, []);
+
+  const { requestRefresh, isUpdating } = useRefreshController(fetchData, enabled);
+
+  const refetch = useCallback(() => requestRefresh('background'), [requestRefresh]);
+
+  useEffect(() => {
     if (!enabled) {
       setData(EMPTY_ADMIN_STATE);
       setIsLoading(false);
       return;
     }
+    void requestRefresh('initial');
+  }, [enabled, requestRefresh]);
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      setData(await listGroupAdminState());
-    } catch (err) {
-      setError(toAppError(err, 'group_admin_state_fetch_failed'));
-      setData(EMPTY_ADMIN_STATE);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [enabled]);
-
-  useEffect(() => {
-    void refetch();
-  }, [refetch]);
-
-  return { data, setData, isLoading, error, refetch };
+  return { data, setData, isLoading, isUpdating, error, refetch };
 };

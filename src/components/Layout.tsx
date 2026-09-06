@@ -24,7 +24,7 @@ export default function Layout({
     <header className="safe-sticky-header sticky top-0 z-50 w-full glass-morphism border-b border-primary/10">
       <div className="site-header-content container flex min-h-20 items-center justify-between px-4 sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          <CompanionBotLogo className="h-14 w-14 shrink-0" />
+          <CompanionBotLogo className="h-16 w-16 shrink-0 sm:h-[72px] sm:w-[72px]" />
           <div>
             <h1 className="my-0 text-lg font-semibold text-foreground">AAMD Portal</h1>
             <p className="text-xs text-muted-foreground">{isTA ? 'TA Dashboard' : 'Student Portal'}</p>

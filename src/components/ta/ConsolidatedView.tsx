@@ -15,6 +15,8 @@ import { applyTaTestStudentToBoard, fetchTaTestStudentSettings } from '@/lib/tes
 import { subscribeAttendanceDataUpdated, subscribeRosterDataUpdated } from '@/lib/data-sync-events';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import { useStaleRefreshOnFocus } from '@/hooks/use-stale-refresh-on-focus';
+import { useRefreshController } from '@/hooks/use-refresh-controller';
+import { STUDENT_SERIAL_HEADER } from '@/lib/student-table';
 import { toast } from 'sonner';
 import { Loader2, Upload } from 'lucide-react';
 import type {
@@ -31,7 +33,7 @@ interface ConsolidatedViewProps {
   onAgentCommandHandled?: () => void;
 }
 
-type FetchMode = 'initial' | 'silent';
+type FetchMode = 'initial' | 'background';
 
 export default function ConsolidatedView({
   isActive,
@@ -43,28 +45,19 @@ export default function ConsolidatedView({
   const [sessions, setSessions] = useState<PublicAttendanceSession[]>([]);
   const [students, setStudents] = useState<PublicAttendanceStudent[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const hasLoadedOnceRef = useRef(false);
-  const isFetchInFlightRef = useRef(false);
   const markRefreshedRef = useRef<() => void>(() => {});
   const searchInputRef = useRef<HTMLInputElement>(null);
   const syncButtonRef = useRef<HTMLButtonElement>(null);
   const lastHandledAgentCommandTokenRef = useRef<number | null>(null);
 
   const fetchData = useCallback(async (mode: FetchMode) => {
-    if (isFetchInFlightRef.current) {
-      return;
-    }
-
     const shouldShowInitialLoader = mode === 'initial' && !hasLoadedOnceRef.current;
-    isFetchInFlightRef.current = true;
 
     if (shouldShowInitialLoader) {
       setIsInitialLoading(true);
-    } else {
-      setIsRefreshing(true);
     }
 
     try {
@@ -113,13 +106,13 @@ export default function ConsolidatedView({
       if (shouldShowInitialLoader) {
         setIsInitialLoading(false);
       }
-      setIsRefreshing(false);
-      isFetchInFlightRef.current = false;
     }
   }, []);
 
+  const { requestRefresh, isUpdating } = useRefreshController(fetchData);
+
   const { markRefreshed } = useStaleRefreshOnFocus(
-    () => fetchData(hasLoadedOnceRef.current ? 'silent' : 'initial'),
+    () => requestRefresh('background'),
     { enabled: isActive, staleAfterMs: 60_000 },
   );
 
@@ -132,24 +125,24 @@ export default function ConsolidatedView({
       return;
     }
 
-    void fetchData(hasLoadedOnceRef.current ? 'silent' : 'initial');
-  }, [isActive, fetchData]);
+    void requestRefresh(hasLoadedOnceRef.current ? 'background' : 'initial');
+  }, [isActive, requestRefresh]);
 
   useEffect(() => {
     const unsubscribeRoster = subscribeRosterDataUpdated(() => {
       if (!isActive) return;
-      void fetchData(hasLoadedOnceRef.current ? 'silent' : 'initial');
+      void requestRefresh('background');
     });
     const unsubscribeAttendance = subscribeAttendanceDataUpdated(() => {
       if (!isActive) return;
-      void fetchData(hasLoadedOnceRef.current ? 'silent' : 'initial');
+      void requestRefresh('background');
     });
 
     return () => {
       unsubscribeRoster();
       unsubscribeAttendance();
     };
-  }, [isActive, fetchData]);
+  }, [isActive, requestRefresh]);
 
   useEffect(() => {
     if (!isActive) {
@@ -165,14 +158,14 @@ export default function ConsolidatedView({
         { table: 'app_settings' },
       ],
       () => {
-        void fetchData(hasLoadedOnceRef.current ? 'silent' : 'initial');
+        void requestRefresh('background');
       },
     );
 
     return () => {
       void removeRealtimeChannel(channel);
     };
-  }, [isActive, fetchData]);
+  }, [isActive, requestRefresh]);
 
   const filteredStudents = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -283,9 +276,10 @@ export default function ConsolidatedView({
       <CardHeader>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
-            <CardTitle>Consolidated View</CardTitle>
+          <CardTitle>Consolidated View</CardTitle>
             <CardDescription>Full attendance sheet with penalties</CardDescription>
           </div>
+          <span className={`w-24 text-right text-xs text-muted-foreground transition-opacity ${isUpdating ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">Updating…</span>
           <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
             <Input
               ref={searchInputRef}
@@ -316,8 +310,9 @@ export default function ConsolidatedView({
             <Table containerClassName="max-h-[600px]">
               <TableHeader className="sticky top-0 z-20">
                 <TableRow>
-                  <TableHead className="sticky left-0 z-30 w-[96px] min-w-[96px] max-w-[96px]">Class</TableHead>
-                  <TableHead className="sticky left-[96px] z-30 w-[220px] min-w-[220px] max-w-[220px]">Name</TableHead>
+                  <TableHead className="sticky left-0 z-30 w-[52px] min-w-[52px] max-w-[52px]">{STUDENT_SERIAL_HEADER}</TableHead>
+                  <TableHead className="sticky left-[52px] z-30 w-[96px] min-w-[96px] max-w-[96px]">Class</TableHead>
+                  <TableHead className="sticky left-[148px] z-30 w-[220px] min-w-[220px] max-w-[220px]">Name</TableHead>
                   <TableHead className="w-[112px] min-w-[112px] max-w-[112px]">ERP</TableHead>
                   <TableHead className="w-[112px] min-w-[112px] text-center font-bold status-absent-table-text">Name Penalty</TableHead>
                   <TableHead className="w-[96px] min-w-[96px] text-center font-bold">Absences</TableHead>
@@ -329,7 +324,7 @@ export default function ConsolidatedView({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStudents.map((student) => {
+                {filteredStudents.map((student, index) => {
                   const getAbsenceColor = (count: number) => {
                     if (count === 0) return '';
                     if (count <= 2) return 'status-present-table-text';
@@ -345,8 +340,9 @@ export default function ConsolidatedView({
 
                   return (
                     <TableRow key={student.erp}>
-                      <TableCell className="sticky left-0 z-10 w-[96px] min-w-[96px] max-w-[96px] font-medium">{student.class_no}</TableCell>
-                      <TableCell className="sticky left-[96px] z-10 w-[220px] min-w-[220px] max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap">
+                      <TableCell className="sticky left-0 z-10 w-[52px] min-w-[52px] max-w-[52px] text-center font-medium">{index + 1}</TableCell>
+                      <TableCell className="sticky left-[52px] z-10 w-[96px] min-w-[96px] max-w-[96px] font-medium">{student.class_no}</TableCell>
+                      <TableCell className="sticky left-[148px] z-10 w-[220px] min-w-[220px] max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap">
                         <span className="block truncate">{student.student_name}</span>
                       </TableCell>
                       <TableCell className="w-[112px] min-w-[112px] max-w-[112px]">{student.erp}</TableCell>

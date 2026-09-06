@@ -27,6 +27,8 @@ import { Loader2, Save } from 'lucide-react';
 import { sendNtfyNotification } from '@/lib/ntfy';
 import { useAuth } from '@/lib/auth';
 import { useStaleRefreshOnFocus } from '@/hooks/use-stale-refresh-on-focus';
+import { useRefreshController } from '@/hooks/use-refresh-controller';
+import { STUDENT_SERIAL_CLASS, STUDENT_SERIAL_HEADER } from '@/lib/student-table';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import { readScopedSessionStorage, writeScopedSessionStorage } from '@/lib/scoped-session-storage';
 import type { ZoomSessionReport } from '@/lib/zoom-session-report';
@@ -119,6 +121,12 @@ export default function AttendanceMarking({
   const syncButtonRef = useRef<HTMLButtonElement>(null);
   const lastHandledAgentCommandTokenRef = useRef<number | null>(null);
 
+  const { requestRefresh, isUpdating } = useRefreshController(async (mode) => {
+    await fetchSessions();
+    const latestRoster = await fetchRoster();
+    if (selectedSessionId) await fetchAttendance(selectedSessionId, latestRoster, mode === 'initial' ? 'initial' : 'silent');
+  }, Boolean(selectedSessionId));
+
   useEffect(() => {
     void fetchSessions();
     void fetchRoster();
@@ -182,17 +190,11 @@ export default function AttendanceMarking({
 
   useEffect(() => {
     const unsubscribe = subscribeRosterDataUpdated(() => {
-      void (async () => {
-        const latestRoster = await fetchRoster();
-
-        if (selectedSessionId) {
-          await fetchAttendance(selectedSessionId, latestRoster, 'silent');
-        }
-      })();
+      void requestRefresh('background');
     });
 
     return unsubscribe;
-  }, [selectedSessionId]);
+  }, [requestRefresh]);
 
   useEffect(() => {
     const unsubscribeAttendance = subscribeAttendanceDataUpdated(() => {
@@ -200,11 +202,11 @@ export default function AttendanceMarking({
         return;
       }
 
-      void fetchAttendance(selectedSessionId, undefined, 'silent');
+      void requestRefresh('background');
     });
 
     return unsubscribeAttendance;
-  }, [selectedSessionId]);
+  }, [requestRefresh, selectedSessionId]);
 
   useEffect(() => {
     writeScopedSessionStorage(TA_STORAGE_SCOPE, userEmail, ATTENDANCE_MARKING_STORAGE_KEY, {
@@ -346,7 +348,9 @@ export default function AttendanceMarking({
       const initialResult = await loadSessionAttendanceRows(sessionId);
       if (initialResult.error) {
         toast.error(`Failed to load attendance: ${initialResult.error.message}`);
-        setAttendanceData([]);
+        if (shouldShowLoader) {
+          setAttendanceData([]);
+        }
         return;
       }
 
@@ -577,13 +581,7 @@ export default function AttendanceMarking({
   const excusedCount = attendanceData.filter((record) => record.status === 'excused').length;
   const penalizedCount = attendanceData.filter((record) => record.naming_penalty).length;
   const { markRefreshed } = useStaleRefreshOnFocus(
-    async () => {
-      const latestRoster = await fetchRoster();
-      await fetchSessions();
-      if (selectedSessionId) {
-        await fetchAttendance(selectedSessionId, latestRoster, 'silent');
-      }
-    },
+    () => requestRefresh('background'),
     { staleAfterMs: 60_000 },
   );
 
@@ -600,20 +598,14 @@ export default function AttendanceMarking({
         { table: 'sessions' },
       ],
       () => {
-        void fetchSessions();
-        void (async () => {
-          const latestRoster = await fetchRoster();
-          if (selectedSessionId) {
-            await fetchAttendance(selectedSessionId, latestRoster, 'silent');
-          }
-        })();
+        void requestRefresh('background');
       },
     );
 
     return () => {
       void removeRealtimeChannel(channel);
     };
-  }, [selectedSessionId]);
+    }, [requestRefresh]);
 
   return (
     <div className="ta-module-shell grid gap-6 md:grid-cols-3">
@@ -621,6 +613,7 @@ export default function AttendanceMarking({
         <CardHeader>
           <CardTitle>Mark Attendance</CardTitle>
           <CardDescription>Select a session and paste absent ERPs</CardDescription>
+          <div className="h-5 text-right" aria-live="polite"><span className={`inline-block w-24 text-xs text-muted-foreground transition-opacity ${isUpdating ? 'opacity-100' : 'opacity-0'}`}>Updating…</span></div>
         </CardHeader>
         <CardContent className="space-y-4">
           <Select value={selectedSessionId} onValueChange={setSelectedSessionId}>
@@ -766,6 +759,7 @@ export default function AttendanceMarking({
               <Table scrollClassName="overflow-x-auto">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className={STUDENT_SERIAL_CLASS}>{STUDENT_SERIAL_HEADER}</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>ERP</TableHead>
@@ -774,8 +768,9 @@ export default function AttendanceMarking({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAttendance.map((record) => (
+                  {filteredAttendance.map((record, index) => (
                     <TableRow key={record.id}>
+                      <TableCell className={STUDENT_SERIAL_CLASS}>{index + 1}</TableCell>
                       <TableCell>{record.class_no}</TableCell>
                       <TableCell>{record.student_name}</TableCell>
                       <TableCell>{record.erp}</TableCell>

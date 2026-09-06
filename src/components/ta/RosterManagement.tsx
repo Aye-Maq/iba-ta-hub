@@ -33,8 +33,10 @@ import { emitRosterDataUpdated } from '@/lib/data-sync-events';
 import { applyTaTestStudentToRoster, fetchTaTestStudentSettings, TEST_STUDENT_ERP } from '@/lib/test-student-settings';
 import { useAuth } from '@/lib/auth';
 import { useStaleRefreshOnFocus } from '@/hooks/use-stale-refresh-on-focus';
+import { useRefreshController } from '@/hooks/use-refresh-controller';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import { readScopedSessionStorage, writeScopedSessionStorage } from '@/lib/scoped-session-storage';
+import { sortStudentRows, STUDENT_SERIAL_CLASS, STUDENT_SERIAL_HEADER } from '@/lib/student-table';
 import type {
     AgentCommandEnvelope,
     HelpContextSnapshot,
@@ -271,7 +273,7 @@ export default function RosterManagement({
             ]);
 
             const data = rosterResponse.rows as StudentRow[];
-            const mergedRows = applyTaTestStudentToRoster(data, testStudentSettings);
+            const mergedRows = sortStudentRows(applyTaTestStudentToRoster(data, testStudentSettings));
 
             setCount(mergedRows.length);
             setStudents(mergedRows);
@@ -415,14 +417,15 @@ export default function RosterManagement({
         setIsDialogOpen(true);
     };
 
-    const filteredStudents = students.filter(s =>
+    const filteredStudents = sortStudentRows(students.filter(s =>
         s.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.erp.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.class_no.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    ));
+    const { requestRefresh, isUpdating } = useRefreshController(async () => fetchRoster());
 
     const { markRefreshed } = useStaleRefreshOnFocus(
-        () => fetchRoster(),
+        () => requestRefresh('background'),
         { staleAfterMs: 60_000 },
     );
 
@@ -435,14 +438,14 @@ export default function RosterManagement({
             `ta-roster-${Date.now()}`,
             [{ table: 'students_roster' }, { table: 'app_settings' }],
             () => {
-                void fetchRoster();
+                void requestRefresh('background');
             },
         );
 
         return () => {
             void removeRealtimeChannel(channel);
         };
-    }, []);
+        }, [requestRefresh]);
 
     return (
         <div className="ta-module-shell  space-y-8 animate-fade-in">
@@ -525,12 +528,14 @@ export default function RosterManagement({
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
+                                <div className="mt-2 h-5 text-right" aria-live="polite"><span className={`inline-block w-24 text-xs text-muted-foreground transition-opacity ${isUpdating ? 'opacity-100' : 'opacity-0'}`}>Updating…</span></div>
                             </div>
                         </div>
 
                             <Table containerClassName="min-h-[500px]" scrollClassName="overflow-x-auto">
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent">
+                                        <TableHead className={`${STUDENT_SERIAL_CLASS} text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 px-6`}>{STUDENT_SERIAL_HEADER}</TableHead>
                                         <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 px-6">Class</TableHead>
                                         <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 px-6">Student Identity</TableHead>
                                         <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-4 px-6">ERP ID</TableHead>
@@ -538,8 +543,9 @@ export default function RosterManagement({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredStudents.map((s) => (
+                                    {filteredStudents.map((s, index) => (
                                         <TableRow key={s.id ?? `erp-${s.erp}`} className="transition-colors group">
+                                            <TableCell className={`${STUDENT_SERIAL_CLASS} py-4 px-6`}>{index + 1}</TableCell>
                                             <TableCell className="py-4 px-6">
                                                 <Badge variant="outline" className="font-mono text-[10px]">
                                                     CL-{s.class_no}
@@ -571,7 +577,7 @@ export default function RosterManagement({
                                     ))}
                                     {filteredStudents.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-20">
+                                            <TableCell colSpan={5} className="text-center py-20">
                                                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                                     <Search className="h-10 w-10 opacity-20" />
                                                     <p className="text-sm font-medium">No students matched your search criteria.</p>

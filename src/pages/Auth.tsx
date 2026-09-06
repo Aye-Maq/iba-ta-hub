@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { AccessCheckError, checkRosterCached, checkTaAllowlistCached } from '@/lib/access-checks';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { ModeToggle } from '@/components/mode-toggle';
 import CompanionBotLogo from '@/components/CompanionBotLogo';
 
@@ -145,9 +145,16 @@ export default function Auth() {
         <ModeToggle />
       </div>
       <div className="w-full max-w-md animate-fade-in">
+        <Link
+          to="/"
+          className="mb-5 inline-flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          <span>Back to dashboard</span>
+        </Link>
         <div className="mb-8 flex items-center justify-center px-2">
           <div className="flex items-center gap-3">
-            <CompanionBotLogo className="h-14 w-14" />
+            <CompanionBotLogo className="h-[72px] w-[72px] shrink-0" />
             <div>
               <h1 className="text-2xl font-bold text-foreground">Course Portal</h1>
               <p className="text-sm text-muted-foreground">Sign in to continue</p>

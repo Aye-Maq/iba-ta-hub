@@ -3,6 +3,7 @@ import { Loader2, Users, UserPlus, UserMinus, LogOut, Lock, Check, X } from 'luc
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/date-format';
+import { STUDENT_SERIAL_CLASS, STUDENT_SERIAL_HEADER } from '@/lib/student-table';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import {
   studentCreateGroup,
@@ -37,7 +38,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 
 export default function Groups() {
   const { user } = useAuth();
-  const { data, setData, isLoading, refetch } = useStudentGroupsState(Boolean(user?.email));
+  const { data, setData, isLoading, isUpdating, refetch } = useStudentGroupsState(Boolean(user?.email));
   const [createGroupNumber, setCreateGroupNumber] = useState('');
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -167,6 +168,11 @@ export default function Groups() {
 
   return (
     <div className="space-y-4 md:space-y-8">
+      <div className="flex h-6 justify-end" aria-live="polite">
+        <span className={`w-24 text-right text-xs text-muted-foreground transition-opacity ${isUpdating ? 'opacity-100' : 'opacity-0'}`}>
+          Updating…
+        </span>
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="h-full">
           <CardHeader className="h-full p-5">
@@ -235,6 +241,7 @@ export default function Groups() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className={STUDENT_SERIAL_CLASS}>{STUDENT_SERIAL_HEADER}</TableHead>
                     <TableHead>ERP</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Class</TableHead>
@@ -243,10 +250,11 @@ export default function Groups() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentGroup.members.map((member) => {
+                  {currentGroup.members.map((member, index) => {
                     const memberIsCreator = currentGroup.created_by_role === 'student' && currentGroup.created_by_erp === member.erp;
                     return (
                       <TableRow key={member.erp}>
+                        <TableCell className={STUDENT_SERIAL_CLASS}>{index + 1}</TableCell>
                         <TableCell className="font-medium">{member.erp}</TableCell>
                         <TableCell>{member.student_name}</TableCell>
                         <TableCell>{member.class_no}</TableCell>
@@ -291,6 +299,7 @@ export default function Groups() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className={STUDENT_SERIAL_CLASS}>{STUDENT_SERIAL_HEADER}</TableHead>
                         <TableHead>ERP</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Class</TableHead>
@@ -300,14 +309,15 @@ export default function Groups() {
                     <TableBody>
                       {(data.incoming_join_requests ?? []).length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                          <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
                             No pending join requests.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        (data.incoming_join_requests ?? []).map((request) => {
+                        (data.incoming_join_requests ?? []).map((request, index) => {
                           return (
                           <TableRow key={request.id}>
+                            <TableCell className={STUDENT_SERIAL_CLASS}>{index + 1}</TableCell>
                             <TableCell className="font-medium">{request.student_erp}</TableCell>
                             <TableCell>{request.student_name}</TableCell>
                             <TableCell>{request.class_no}</TableCell>

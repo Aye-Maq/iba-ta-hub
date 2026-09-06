@@ -29,6 +29,7 @@ import type {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import { useStaleRefreshOnFocus } from '@/hooks/use-stale-refresh-on-focus';
+import { useRefreshController } from '@/hooks/use-refresh-controller';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import { readScopedSessionStorage, writeScopedSessionStorage } from '@/lib/scoped-session-storage';
 import {
@@ -445,8 +446,9 @@ export default function SessionManagement({
         input.click();
     };
 
+    const { requestRefresh, isUpdating } = useRefreshController(async () => fetchSessions('silent'));
     const { markRefreshed } = useStaleRefreshOnFocus(
-        () => fetchSessions('silent'),
+        () => requestRefresh('background'),
         { staleAfterMs: 60_000 },
     );
 
@@ -459,20 +461,20 @@ export default function SessionManagement({
             `ta-sessions-${userEmail ?? 'anonymous'}`,
             [{ table: 'sessions' }],
             () => {
-                void fetchSessions('silent');
+                void requestRefresh('background');
             },
         );
 
         return () => {
             void removeRealtimeChannel(channel);
         };
-    }, [fetchSessions, userEmail]);
+    }, [requestRefresh, userEmail]);
 
     return (
         <div className="ta-module-shell grid gap-6 md:grid-cols-3">
             <Card className="md:col-span-1 h-fit ta-module-card">
                 <CardHeader>
-                    <CardTitle>Add Session</CardTitle>
+                    <CardTitle className="flex items-center justify-between"><span>Add Session</span><span className={`w-24 text-right text-xs font-normal text-muted-foreground transition-opacity ${isUpdating ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">Updating…</span></CardTitle>
                     <CardDescription>Create a new class session</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

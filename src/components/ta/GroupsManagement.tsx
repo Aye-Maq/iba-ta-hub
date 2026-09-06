@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/date-format';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
+import { STUDENT_SERIAL_CLASS, STUDENT_SERIAL_HEADER } from '@/lib/student-table';
 import { readScopedSessionStorage, writeScopedSessionStorage } from '@/lib/scoped-session-storage';
 import { getErrorMessage } from '@/shared/errors';
 import { Tables } from '@/integrations/supabase/types';
@@ -120,7 +121,7 @@ export default function GroupsManagement({
     },
   );
 
-  const { data, setData, isLoading, refetch } = useGroupAdminState(Boolean(userEmail));
+  const { data, setData, isLoading, isUpdating, refetch } = useGroupAdminState(Boolean(userEmail));
   const [rosterSearchQuery, setRosterSearchQuery] = useState(persistedState.rosterSearchQuery);
   const [groupedStudentSearch, setGroupedStudentSearch] = useState(persistedState.groupedStudentSearch);
   const [unassignedStudentSearch, setUnassignedStudentSearch] = useState(persistedState.unassignedStudentSearch);
@@ -632,6 +633,11 @@ export default function GroupsManagement({
 
   return (
     <div className="space-y-4 md:space-y-8">
+      <div className="flex h-6 justify-end" aria-live="polite">
+        <span className={`w-24 text-right text-xs text-muted-foreground transition-opacity ${isUpdating ? 'opacity-100' : 'opacity-0'}`}>
+          Updating…
+        </span>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {METRICS.map((metric) => (
           <button
@@ -860,6 +866,7 @@ export default function GroupsManagement({
             <Table containerClassName="max-h-[760px]">
               <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
+                  <TableHead className={STUDENT_SERIAL_CLASS}>{STUDENT_SERIAL_HEADER}</TableHead>
                   <TableHead>Student</TableHead>
                   <TableHead>Current</TableHead>
                   <TableHead>Target</TableHead>
@@ -869,13 +876,14 @@ export default function GroupsManagement({
               <TableBody>
                 {filteredRoster.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                       No students match this filter.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRoster.map((entry) => (
+                  filteredRoster.map((entry, index) => (
                     <TableRow key={entry.erp}>
+                      <TableCell className={STUDENT_SERIAL_CLASS}>{index + 1}</TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           <div className="font-medium">{entry.student_name}</div>

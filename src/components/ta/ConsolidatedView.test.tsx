@@ -109,7 +109,7 @@ describe('ConsolidatedView', () => {
 
     const penalizedRow = screen.getByText('Penalized Student').closest('tr');
     expect(penalizedRow).not.toBeNull();
-    const penaltyTrigger = within(penalizedRow as HTMLTableRowElement).getByText('2');
+    const penaltyTrigger = within(penalizedRow as HTMLTableRowElement).getAllByText('2').find((element) => element.hasAttribute('title'))!;
     const penaltyCell = penaltyTrigger.closest('td');
     expect(penaltyCell).toHaveClass('status-absent-table-text');
   });
@@ -119,7 +119,7 @@ describe('ConsolidatedView', () => {
 
     const penalizedRow = (await screen.findByText('Penalized Student')).closest('tr');
     expect(penalizedRow).not.toBeNull();
-    const penaltyTrigger = within(penalizedRow as HTMLTableRowElement).getByText('2');
+    const penaltyTrigger = within(penalizedRow as HTMLTableRowElement).getAllByText('2').find((element) => element.hasAttribute('title'))!;
 
     expect(penaltyTrigger).toHaveAttribute('title', 'Penalty sessions: S1, S2');
   });

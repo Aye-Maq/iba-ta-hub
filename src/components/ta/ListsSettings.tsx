@@ -10,6 +10,7 @@ import { Loader2, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { emitRosterDataUpdated } from '@/lib/data-sync-events';
 import { useStaleRefreshOnFocus } from '@/hooks/use-stale-refresh-on-focus';
+import { useRefreshController } from '@/hooks/use-refresh-controller';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import { readScopedSessionStorage, writeScopedSessionStorage } from '@/lib/scoped-session-storage';
 import { TEST_STUDENT_ERP } from '@/lib/test-student-settings';
@@ -378,10 +379,11 @@ export default function ListsSettings({
         }
     };
 
+    const { requestRefresh, isUpdating } = useRefreshController(async () => {
+        await Promise.all([fetchSettings(), fetchTaList(), fetchSubmissions()]);
+    });
     const { markRefreshed } = useStaleRefreshOnFocus(
-        async () => {
-            await Promise.all([fetchSettings(), fetchTaList(), fetchSubmissions()]);
-        },
+        () => requestRefresh('background'),
         { staleAfterMs: 60_000 },
     );
 
@@ -398,16 +400,14 @@ export default function ListsSettings({
                 { table: 'ta_allowlist' },
             ],
             () => {
-                void fetchSettings();
-                void fetchTaList();
-                void fetchSubmissions();
+                void requestRefresh('background');
             },
         );
 
         return () => {
             void removeRealtimeChannel(channel);
         };
-    }, []);
+    }, [requestRefresh]);
 
     const toggleStudentTickets = async (checked: boolean) => {
         if (!settings) return;
@@ -607,7 +607,7 @@ export default function ListsSettings({
         <div className="ta-module-shell grid gap-6 md:grid-cols-2">
             <Card className="ta-module-card">
                 <CardHeader>
-                    <CardTitle>Global Settings</CardTitle>
+                    <CardTitle className="flex items-center justify-between"><span>Global Settings</span><span className={`w-24 text-right text-xs font-normal text-muted-foreground transition-opacity ${isUpdating ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">Updating…</span></CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="flex items-center justify-between space-x-2">
