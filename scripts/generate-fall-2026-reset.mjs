@@ -33,7 +33,25 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 }
 
 const cellText = (value) => (value == null ? '' : String(value).trim());
-const normalizeName = (value) => cellText(value).replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+const normalizeName = (value) => {
+  const compact = cellText(value).replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+  return compact
+    .split(/([\s-]+)/)
+    .map((token) => {
+      if (/^[\s-]+$/.test(token)) return token;
+      if (/^n\/a$/i.test(token)) return 'N/a';
+
+      let firstLetter = true;
+      return token.replace(/[A-Za-z]/g, (letter) => {
+        if (firstLetter) {
+          firstLetter = false;
+          return letter.toUpperCase();
+        }
+        return letter.toLowerCase();
+      });
+    })
+    .join('');
+};
 const sqlLiteral = (value) => `'${value.replaceAll("'", "''")}'`;
 
 if (!fs.existsSync(rosterDir)) {
