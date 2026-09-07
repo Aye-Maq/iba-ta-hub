@@ -3,6 +3,7 @@ import { CalendarClock, Check, Download, Loader2, Plus, RefreshCcw, Search, Tras
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/date-format';
+import { formatDistanceToNow } from 'date-fns';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import { STUDENT_SERIAL_CLASS, STUDENT_SERIAL_HEADER } from '@/lib/student-table';
 import { readScopedSessionStorage, writeScopedSessionStorage } from '@/lib/scoped-session-storage';
@@ -656,6 +657,33 @@ export default function GroupsManagement({
         ))}
       </div>
 
+      <Card className="ta-module-card">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">Pending Join Requests <Badge aria-label={`${data.join_requests.length} pending join requests`} variant={data.join_requests.length > 0 ? 'default' : 'secondary'}>{data.join_requests.length}</Badge></CardTitle>
+              <CardDescription>Review student requests before managing the full group roster.</CardDescription>
+            </div>
+            <span className="text-xs text-muted-foreground" aria-live="polite">{isUpdating ? 'Updating…' : 'Live status'}</span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {data.join_requests.length === 0 ? <p className="text-sm text-muted-foreground">No pending requests.</p> : (
+            <div className="space-y-2">
+              {data.join_requests.map((request) => {
+                const group = data.groups.find((item) => item.group_number === request.group_number);
+                const parsedRequestDate = new Date(request.created_at);
+                const requestAge = Number.isNaN(parsedRequestDate.getTime()) ? 'time unavailable' : formatDistanceToNow(parsedRequestDate, { addSuffix: true });
+                return <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3">
+                  <div className="min-w-0 text-sm"><div className="font-medium">{request.student_name} ({request.student_erp})</div><div className="text-muted-foreground">Class {request.class_no} · Group {request.group_number} · {group?.member_count ?? 0}/5 members</div><div className="text-xs text-muted-foreground">Requested {requestAge} · {formatDate(request.created_at, 'PPP p')}</div></div>
+                  <div className="flex gap-2"><Button size="sm" onClick={() => handleRespondToRequest(request.id, true)} disabled={busyAction?.includes(request.id)}>{busyAction === `accept-request-${request.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}Approve</Button><Button size="sm" variant="outline" onClick={() => handleRespondToRequest(request.id, false)} disabled={busyAction?.includes(request.id)}><X className="mr-2 h-4 w-4" />Decline</Button></div>
+                </div>;
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.95fr)]">
         <Card className="ta-module-card">
           <CardHeader>
@@ -802,38 +830,6 @@ export default function GroupsManagement({
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="ta-module-card xl:col-span-2">
-          <CardHeader>
-            <CardTitle>Pending Join Requests</CardTitle>
-            <CardDescription>Approve or decline student requests. Acceptance is checked against the live group capacity.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(data.join_requests ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pending requests.</p>
-            ) : (
-              <div className="space-y-2">
-                {(data.join_requests ?? []).map((request) => (
-                  <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3">
-                    <div className="text-sm">
-                      <div className="font-medium">{request.student_name} ({request.student_erp})</div>
-                      <div className="text-muted-foreground">Group {request.group_number} · Class {request.class_no}</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleRespondToRequest(request.id, true)} disabled={busyAction?.includes(request.id)}>
-                        {busyAction === `accept-request-${request.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-                        Approve
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleRespondToRequest(request.id, false)} disabled={busyAction?.includes(request.id)}>
-                        <X className="mr-2 h-4 w-4" /> Decline
-                      </Button>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
           </CardContent>

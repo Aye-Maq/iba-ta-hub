@@ -1331,23 +1331,23 @@ export default function TAZoomProcess({
           <Input value={issueSearchQuery} onChange={(event) => setIssueSearchQuery(event.target.value)} placeholder="Search issues by name or ERP" className="h-9 w-full sm:w-[260px]" aria-label="Search participant issues" />
         </div>
 
-        <div className="hidden overflow-x-auto rounded-xl border border-[#141517] md:block">
+        <div className="hidden overflow-x-auto rounded-xl border border-[#141517] lg:block">
           <Table>
-          <TableHeader><TableRow><TableHead>Zoom participant / ignore</TableHead><TableHead>ERP candidate</TableHead><TableHead>Resolution</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead className="sticky left-0 z-30 bg-background">Zoom participant / ignore</TableHead><TableHead>ERP candidate</TableHead><TableHead>Resolution</TableHead></TableRow></TableHeader>
             <TableBody>
               {visibleRows.map((issue) => {
                 const ignored = ignoredKeys.has(issue.id);
                 return <TableRow key={issue.id}>
-                  <TableCell className="align-top"><div className="flex items-start gap-2"><Checkbox checked={ignored} onCheckedChange={() => updateIgnored(issue)} aria-label={`Ignore ${issue.name || 'participant'}`} /><span className="max-w-[240px] break-words font-mono text-xs">{issue.name || 'Unknown participant'}</span></div></TableCell>
+                  <TableCell className="sticky left-0 z-20 align-top bg-background"><div className="flex min-w-[210px] items-start gap-2"><Checkbox checked={ignored} onCheckedChange={() => updateIgnored(issue)} aria-label={`Ignore ${issue.name || 'participant'}`} /><span className="max-w-[240px] break-words font-mono text-xs">{issue.name || 'Unknown participant'}</span></div></TableCell>
                   <TableCell className="align-top font-mono text-xs">{issue.erpCandidate || 'N/A'}</TableCell>
-                  <TableCell className="min-w-[420px] align-top">{renderResolution(issue)}</TableCell>
+                  <TableCell className="min-w-[320px] align-top">{renderResolution(issue)}</TableCell>
                 </TableRow>;
               })}
             </TableBody>
           </Table>
         </div>
 
-        <div className="space-y-3 md:hidden">
+        <div className="space-y-3 lg:hidden">
           {visibleRows.map((issue) => {
             const ignored = ignoredKeys.has(issue.id);
             return <Card key={issue.id} className="neo-in border border-[#141517] p-4">
@@ -1589,14 +1589,6 @@ export default function TAZoomProcess({
               {selectedSession && (
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <p>Official window: {selectedSession.start_time || 'start not set'}–{selectedSession.end_time || 'end not set'}.</p>
-                  {timingSummary && (
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg border border-[#141517] neo-in p-3 sm:grid-cols-4">
-                      <span>Official: <strong>{timingSummary.officialMinutes} min</strong></span>
-                      <span>Break: <strong>{timingSummary.breakMinutes} min</strong></span>
-                      <span>Effective: <strong>{timingSummary.effectiveMinutes} min</strong></span>
-                      <span>80% required: <strong>{timingSummary.requiredMinutes} min</strong></span>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -1642,6 +1634,14 @@ export default function TAZoomProcess({
                 <CardDescription className="text-debossed-sm">
                   {data.rows ?? normalizedRows.rawRows.length} records processed. {step === 'review' && 'Review matches before finalizing.'}
                 </CardDescription>
+                {timingSummary && (
+                  <div aria-label="Attendance timing benchmark" className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg border border-[#141517] neo-in p-3 text-xs text-muted-foreground sm:grid-cols-4">
+                    <span>Official: <strong>{timingSummary.officialMinutes} min</strong></span>
+                    <span>Break: <strong>{timingSummary.breakMinutes} min</strong></span>
+                    <span>Effective: <strong>{timingSummary.effectiveMinutes} min</strong></span>
+                    <span>80% required: <strong>{timingSummary.requiredMinutes} min</strong></span>
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline" className="ta-status-chip status-present status-present-table-text">

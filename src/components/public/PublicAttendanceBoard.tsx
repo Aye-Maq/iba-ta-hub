@@ -14,6 +14,7 @@ import { AlertCircle, Loader2, Search } from 'lucide-react';
 import { useRefreshController } from '@/hooks/use-refresh-controller';
 import { useStaleRefreshOnFocus } from '@/hooks/use-stale-refresh-on-focus';
 import { STUDENT_SERIAL_HEADER } from '@/lib/student-table';
+import { getAbsenceCountClass } from '@/lib/absence-display';
 
 export default function PublicAttendanceBoard() {
   const [sessions, setSessions] = useState<PublicAttendanceSession[]>([]);
@@ -88,14 +89,6 @@ export default function PublicAttendanceBoard() {
       return byName || byErp || byClassNo;
     });
   }, [searchQuery, students]);
-
-  const getAbsenceColor = (count: number) => {
-    if (count === 0) return 'text-muted-foreground';
-    if (count <= 2) return 'text-green-600';
-    if (count <= 4) return 'text-yellow-600';
-    if (count === 5) return 'text-red-600';
-    return 'text-purple-600';
-  };
 
   const getSessionSymbol = (status: string | undefined) => {
     if (status === 'present') {
@@ -233,7 +226,7 @@ export default function PublicAttendanceBoard() {
                       >
                         {student.total_penalties}
                       </TableCell>
-                      <TableCell className={`text-center font-semibold ${getAbsenceColor(student.total_absences)}`}>
+                      <TableCell className={`text-center font-semibold ${getAbsenceCountClass(student.total_absences)}`}>
                         {student.total_absences}
                       </TableCell>
                       {sessions.map((session) => {

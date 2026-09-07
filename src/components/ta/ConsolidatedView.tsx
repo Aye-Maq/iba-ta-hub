@@ -17,6 +17,7 @@ import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime
 import { useStaleRefreshOnFocus } from '@/hooks/use-stale-refresh-on-focus';
 import { useRefreshController } from '@/hooks/use-refresh-controller';
 import { STUDENT_SERIAL_HEADER } from '@/lib/student-table';
+import { getAbsenceCountClass } from '@/lib/absence-display';
 import { toast } from 'sonner';
 import { Loader2, Upload } from 'lucide-react';
 import type {
@@ -325,13 +326,6 @@ export default function ConsolidatedView({
               </TableHeader>
               <TableBody>
                 {filteredStudents.map((student, index) => {
-                  const getAbsenceColor = (count: number) => {
-                    if (count === 0) return '';
-                    if (count <= 2) return 'status-present-table-text';
-                    if (count <= 4) return 'status-excused-table-text';
-                    if (count === 5) return 'status-absent-table-text';
-                    return 'status-purple-table-text';
-                  };
                   const hasPenalties = student.total_penalties > 0;
                   const penaltyEntries = student.penalty_entries ?? [];
                   const penaltySessionLabels = penaltyEntries.map((entry) => `S${entry.session_number}`);
@@ -373,7 +367,7 @@ export default function ConsolidatedView({
                           student.total_penalties
                         )}
                       </TableCell>
-                      <TableCell className={`text-center font-bold ${getAbsenceColor(student.total_absences)}`}>
+                      <TableCell className={`text-center font-bold ${getAbsenceCountClass(student.total_absences)}`}>
                         {student.total_absences}
                       </TableCell>
                       {sessions.map((session) => {

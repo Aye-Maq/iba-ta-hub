@@ -177,6 +177,7 @@ describe('GroupsManagement', () => {
     expect(screen.getByRole('button', { name: /enable editing for everyone/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Group 1 · Alpha' })).toBeInTheDocument();
     expect(screen.getByText('Pending Join Requests')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 pending join requests')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /assign/i }).length).toBeGreaterThan(0);
   }, 15000);

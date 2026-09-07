@@ -46,6 +46,7 @@ import {
 } from '@/lib/zoom-session-report';
 import PortalLoadingScreen from '@/components/PortalLoadingScreen';
 import TAHelpAssistant from './TAHelpAssistant';
+import { useGroupAdminState } from '@/features/groups';
 
 const TAZoomProcess = lazy(() => import('./TAZoomProcess'));
 const AttendanceMarking = lazy(() => import('./AttendanceMarking'));
@@ -238,6 +239,7 @@ export default function TAPortal() {
   const commandTokenRef = useRef(0);
 
   const showAttendanceSwitch = activeModule === 'zoom' || activeModule === 'attendance';
+  const { data: dashboardGroups } = useGroupAdminState(!activeModule && !showAttendanceSwitch);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -798,7 +800,14 @@ export default function TAPortal() {
                       </div>
 
                       <div>
-                        <h3 className="ta-dashboard-title text-debossed font-black mb-2 tracking-wide text-lg">{card.title}</h3>
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <h3 className="ta-dashboard-title text-debossed font-black tracking-wide text-lg">{card.title}</h3>
+                          {card.id === 'groups' && dashboardGroups.join_requests.length > 0 && (
+                            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground" aria-label={`${dashboardGroups.join_requests.length} pending join requests`}>
+                              {dashboardGroups.join_requests.length} pending
+                            </span>
+                          )}
+                        </div>
                         <p className="ta-dashboard-description text-debossed-sm text-sm leading-relaxed font-semibold">{card.description}</p>
                       </div>
                     </button>

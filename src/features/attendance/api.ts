@@ -25,11 +25,26 @@ const parseStudentAttendanceSummary = (value: unknown): StudentAttendanceSummary
   const records: StudentAttendanceRecord[] = rawRecords
     .filter(isObjectRecord)
     .map((row) => ({
+      session_id: typeof row.session_id === 'string' ? row.session_id : undefined,
       session_number: toNumberOr(row.session_number),
       session_date: String(row.session_date ?? ''),
       day_of_week: String(row.day_of_week ?? ''),
       status: String(row.status ?? ''),
       naming_penalty: Boolean(row.naming_penalty),
+      details_available: typeof row.details_available === 'boolean' ? row.details_available : undefined,
+      source_type: typeof row.source_type === 'string' ? row.source_type : undefined,
+      session_start_time: typeof row.session_start_time === 'string' ? row.session_start_time : null,
+      session_end_time: typeof row.session_end_time === 'string' ? row.session_end_time : null,
+      official_minutes: row.official_minutes == null ? null : toNumberOr(row.official_minutes),
+      effective_minutes: row.effective_minutes == null ? null : toNumberOr(row.effective_minutes),
+      namaz_break_minutes: row.namaz_break_minutes == null ? null : toNumberOr(row.namaz_break_minutes),
+      attended_minutes: row.attended_minutes == null ? null : toNumberOr(row.attended_minutes),
+      required_minutes: row.required_minutes == null ? null : toNumberOr(row.required_minutes),
+      shortfall_minutes: row.shortfall_minutes == null ? null : toNumberOr(row.shortfall_minutes),
+      zoom_names: typeof row.zoom_names === 'string' ? row.zoom_names : null,
+      name_format: typeof row.name_format === 'string' ? row.name_format : null,
+      match_method: typeof row.match_method === 'string' ? row.match_method : null,
+      explanation_code: typeof row.explanation_code === 'string' ? row.explanation_code : undefined,
     }));
 
   return {
