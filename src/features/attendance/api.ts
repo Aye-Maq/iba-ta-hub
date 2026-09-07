@@ -180,40 +180,13 @@ export const listAttendance = async (): Promise<AttendanceRow[]> => {
 };
 
 export const listAttendanceHistoryByErp = async (erp: string): Promise<AttendanceHistoryRecord[]> => {
-  const { data, error } = await supabase
-    .from('attendance')
-    .select(`
-      session_id,
-      status,
-      sessions!inner (
-        session_number,
-        session_date,
-        day_of_week
-      )
-    `)
-    .eq('erp', erp)
-    .order('sessions(session_number)', { ascending: true });
-
-  if (error) {
-    throw toAppError(error, 'attendance_history_fetch_failed');
-  }
-
-  const rows = (data ?? []) as Array<{
-    session_id: string;
-    status: string;
-    sessions: {
-      session_number: number;
-      session_date: string;
-      day_of_week: string;
-    };
-  }>;
-
-  return rows.map((row) => ({
-    session_id: row.session_id,
-    session_number: row.sessions.session_number,
-    session_date: row.sessions.session_date,
-    day_of_week: row.sessions.day_of_week,
-    status: row.status,
+  const summary = await getStudentAttendanceSummary(erp);
+  return summary.records.map((record) => ({
+    session_id: record.session_id ?? `session-${record.session_number}`,
+    session_number: record.session_number,
+    session_date: record.session_date,
+    day_of_week: record.day_of_week,
+    status: record.status,
   }));
 };
 
