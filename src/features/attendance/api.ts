@@ -30,7 +30,7 @@ const parseStudentAttendanceSummary = (value: unknown): StudentAttendanceSummary
       session_date: String(row.session_date ?? ''),
       day_of_week: String(row.day_of_week ?? ''),
       status: String(row.status ?? ''),
-      naming_penalty: Boolean(row.naming_penalty),
+      naming_penalty: row.naming_penalty === true || ['true', '1', 'yes'].includes(String(row.naming_penalty ?? '').toLowerCase()),
       details_available: typeof row.details_available === 'boolean' ? row.details_available : undefined,
       source_type: typeof row.source_type === 'string' ? row.source_type : undefined,
       session_start_time: typeof row.session_start_time === 'string' ? row.session_start_time : null,

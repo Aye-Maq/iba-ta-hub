@@ -39,6 +39,7 @@ import {
   writeScopedSessionStorage,
 } from '@/lib/scoped-session-storage';
 import { cn } from '@/lib/utils';
+import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import {
   normalizeZoomSessionReport,
   type ZoomReportLoadRequest,
@@ -239,7 +240,22 @@ export default function TAPortal() {
   const commandTokenRef = useRef(0);
 
   const showAttendanceSwitch = activeModule === 'zoom' || activeModule === 'attendance';
-  const { data: dashboardGroups } = useGroupAdminState(!activeModule && !showAttendanceSwitch);
+  const dashboardActive = !activeModule && !showAttendanceSwitch;
+  const { data: dashboardGroups, refetch: refetchDashboardGroups } = useGroupAdminState(dashboardActive);
+
+  useEffect(() => {
+    if (!dashboardActive) return;
+    const channel = subscribeToRealtimeTables(
+      'ta-dashboard-pending-group-requests',
+      [
+        { table: 'student_group_join_requests' },
+        { table: 'student_group_members' },
+        { table: 'student_groups' },
+      ],
+      () => { void refetchDashboardGroups(); },
+    );
+    return () => { void removeRealtimeChannel(channel); };
+  }, [dashboardActive, refetchDashboardGroups]);
 
   useEffect(() => {
     const root = document.documentElement;

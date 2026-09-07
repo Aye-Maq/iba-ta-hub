@@ -68,7 +68,7 @@ export default function Attendance({ canAccess, isBlocked }: AttendanceProps) {
         <CardContent className="py-6">
           <div className="text-center">
             <p className="text-sm opacity-80">Total Absences</p>
-            <p className={`text-4xl font-bold ${getAbsenceCountClass(totalAbsences)}`}>{totalAbsences}</p>
+            <p className={`text-4xl font-bold ${getAbsenceCountClass(totalAbsences, 'text-primary-foreground')}`}>{totalAbsences}</p>
           </div>
         </CardContent>
       </Card>

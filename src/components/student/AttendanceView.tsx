@@ -1,7 +1,7 @@
 import { useERP } from '@/lib/erp-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useStudentAttendanceQuery, type StudentAttendanceRecord } from '@/features/attendance';
 import { getAbsenceCountClass, getAbsenceCountMessage } from '@/lib/absence-display';
@@ -14,6 +14,10 @@ export default function AttendanceView() {
     const totalNamingPenalties = summary.total_naming_penalties;
 
     const formatMinutes = (minutes: number | null | undefined) => minutes == null ? 'Unavailable' : `${minutes} min`;
+    const formatSessionDate = (value: string) => {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? 'Date unavailable' : format(date, 'PPP');
+    };
     const getExplanation = (record: StudentAttendanceRecord) => {
         if (record.explanation_code === 'excused') return 'This session was marked excused.';
         if (record.explanation_code === 'manual_or_legacy') return 'Recorded manually or before detailed tracking was available. Detailed Zoom evidence is unavailable.';
@@ -71,11 +75,11 @@ export default function AttendanceView() {
                             <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
                                 <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
                                     <span className="font-medium">Session {record.session_number}</span>
-                                    <span>{format(new Date(record.session_date), 'PPP')}</span>
+                                    <span>{formatSessionDate(record.session_date)}</span>
                                     <span>{record.day_of_week}</span>
                                     <Badge className={`w-fit ${getStatusColor(record.status)}`}>{record.status.toUpperCase()}</Badge>
                                 </div>
-                                <span className="text-right text-xs text-muted-foreground">{record.naming_penalty ? 'Name penalty (-1)' : 'No name penalty'} · Details</span>
+                                <span className="flex items-center gap-1 text-right text-xs text-muted-foreground"><span>{record.naming_penalty ? 'Name penalty (-1)' : 'No name penalty'} · View details</span><ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" /></span>
                             </summary>
                             <div className="border-t px-4 pb-4 pt-3 text-sm">
                                 {record.naming_penalty && <p className="mb-3 text-destructive">Cutoff was met, but the ERP_name format was invalid, so a name penalty was applied.</p>}

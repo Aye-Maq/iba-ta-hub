@@ -7,6 +7,7 @@ describe('secure student attendance migration', () => {
     expect(sql).toContain("IF auth.uid() IS NULL");
     expect(sql).toContain('student_erp IS DISTINCT FROM v_auth_erp');
     expect(sql).toContain("jsonb_array_elements");
+    expect(sql).toContain('EXCEPTION WHEN others');
     expect(sql).not.toContain("'raw_rows'");
     expect(sql).not.toContain("'issues_rows'");
   });

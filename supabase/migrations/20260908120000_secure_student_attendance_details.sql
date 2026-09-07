@@ -1,5 +1,20 @@
 -- Return only the authenticated student's attendance and the matching row from
 -- each saved Zoom report.  This migration is intentionally not applied here.
+CREATE OR REPLACE FUNCTION public._attendance_safe_numeric(value text)
+RETURNS numeric
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$
+BEGIN
+  IF value IS NULL OR btrim(value) = '' THEN RETURN NULL; END IF;
+  RETURN value::numeric;
+EXCEPTION WHEN others THEN
+  RETURN NULL;
+END;
+$$;
+REVOKE ALL ON FUNCTION public._attendance_safe_numeric(text) FROM PUBLIC;
+
 CREATE OR REPLACE FUNCTION public.get_student_attendance(student_erp text)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -40,20 +55,20 @@ BEGIN
         'source_type', CASE WHEN zoom_row IS NULL THEN 'manual_or_legacy' ELSE 'zoom_report' END,
         'session_start_time', s.start_time,
         'session_end_time', s.end_time,
-        'official_minutes', NULLIF(s.zoom_report ->> 'total_class_minutes', '')::numeric,
-        'effective_minutes', NULLIF(s.zoom_report ->> 'effective_class_minutes', '')::numeric,
+        'official_minutes', public._attendance_safe_numeric(s.zoom_report ->> 'total_class_minutes'),
+        'effective_minutes', public._attendance_safe_numeric(s.zoom_report ->> 'effective_class_minutes'),
         'namaz_break_minutes', CASE
-          WHEN NULLIF(s.zoom_report ->> 'effective_class_minutes', '') IS NULL THEN 0
+          WHEN public._attendance_safe_numeric(s.zoom_report ->> 'effective_class_minutes') IS NULL THEN 0
           ELSE GREATEST(
-            COALESCE(NULLIF(s.zoom_report ->> 'total_class_minutes', '')::numeric, 0)
-            - COALESCE(NULLIF(s.zoom_report ->> 'effective_class_minutes', '')::numeric, 0), 0
+            COALESCE(public._attendance_safe_numeric(s.zoom_report ->> 'total_class_minutes'), 0)
+            - COALESCE(public._attendance_safe_numeric(s.zoom_report ->> 'effective_class_minutes'), 0), 0
           )
         END,
-        'attended_minutes', COALESCE(NULLIF(zoom_row ->> 'Attended Minutes', '')::numeric, 0),
-        'required_minutes', NULLIF(zoom_row ->> 'Required Minutes', '')::numeric,
+        'attended_minutes', COALESCE(public._attendance_safe_numeric(zoom_row ->> 'Attended Minutes'), 0),
+        'required_minutes', public._attendance_safe_numeric(zoom_row ->> 'Required Minutes'),
         'shortfall_minutes', GREATEST(
-          COALESCE(NULLIF(zoom_row ->> 'Required Minutes', '')::numeric, 0)
-          - COALESCE(NULLIF(zoom_row ->> 'Attended Minutes', '')::numeric, 0), 0
+          COALESCE(public._attendance_safe_numeric(zoom_row ->> 'Required Minutes'), 0)
+          - COALESCE(public._attendance_safe_numeric(zoom_row ->> 'Attended Minutes'), 0), 0
         ),
         'zoom_names', NULLIF(zoom_row ->> 'Zoom Name', ''),
         'name_format', NULLIF(zoom_row ->> 'Name Format', ''),
@@ -61,8 +76,8 @@ BEGIN
         'explanation_code', CASE
           WHEN a.status = 'excused' THEN 'excused'
           WHEN zoom_row IS NULL THEN 'manual_or_legacy'
-          WHEN a.status = 'absent' AND COALESCE(NULLIF(zoom_row ->> 'Attended Minutes', '')::numeric, 0) = 0 THEN 'no_zoom_match'
-          WHEN a.status = 'absent' AND COALESCE(NULLIF(zoom_row ->> 'Attended Minutes', '')::numeric, 0) < COALESCE(NULLIF(zoom_row ->> 'Required Minutes', '')::numeric, 0) THEN 'below_cutoff'
+          WHEN a.status = 'absent' AND COALESCE(public._attendance_safe_numeric(zoom_row ->> 'Attended Minutes'), 0) = 0 THEN 'no_zoom_match'
+          WHEN a.status = 'absent' AND COALESCE(public._attendance_safe_numeric(zoom_row ->> 'Attended Minutes'), 0) < COALESCE(public._attendance_safe_numeric(zoom_row ->> 'Required Minutes'), 0) THEN 'below_cutoff'
           WHEN a.status = 'absent' THEN 'ta_override'
           ELSE 'present'
         END

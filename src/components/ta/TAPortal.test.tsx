@@ -1,14 +1,26 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import TAPortal from './TAPortal';
 
-const { useAuthMock } = vi.hoisted(() => ({
+const { useAuthMock, useGroupAdminStateMock, subscribeToRealtimeTablesMock, removeRealtimeChannelMock } = vi.hoisted(() => ({
   useAuthMock: vi.fn(),
+  useGroupAdminStateMock: vi.fn(),
+  subscribeToRealtimeTablesMock: vi.fn(),
+  removeRealtimeChannelMock: vi.fn(),
 }));
 
 vi.mock('@/lib/auth', () => ({
   useAuth: useAuthMock,
+}));
+
+vi.mock('@/features/groups', () => ({
+  useGroupAdminState: useGroupAdminStateMock,
+}));
+
+vi.mock('@/lib/realtime-table-subscriptions', () => ({
+  subscribeToRealtimeTables: subscribeToRealtimeTablesMock,
+  removeRealtimeChannel: removeRealtimeChannelMock,
 }));
 
 vi.mock('./TAZoomProcess', () => ({
@@ -56,8 +68,22 @@ vi.mock('./ListsSettings', () => ({
 }));
 
 describe('TAPortal persistence', () => {
+  const dashboardRefetchMock = vi.fn();
+  let realtimeHandler: (() => void) | undefined;
+
   beforeEach(() => {
     window.sessionStorage.clear();
+    dashboardRefetchMock.mockReset();
+    realtimeHandler = undefined;
+    useGroupAdminStateMock.mockReturnValue({
+      data: { viewer_email: '', groups: [], roster: [], join_requests: [] },
+      refetch: dashboardRefetchMock,
+    });
+    subscribeToRealtimeTablesMock.mockImplementation((_channelName: string, _subscriptions: unknown[], handler: () => void) => {
+      realtimeHandler = handler;
+      return {};
+    });
+    removeRealtimeChannelMock.mockResolvedValue(undefined);
 
     useAuthMock.mockReturnValue({
       user: { email: 'ayeshamaqsood5100@gmail.com' },
@@ -112,6 +138,29 @@ describe('TAPortal persistence', () => {
     expect(zoomCard).toHaveClass('ta-dashboard-card');
     expect(zoomCard.querySelector('.ta-dashboard-icon-glow--base')).toBeTruthy();
     expect(zoomCard.querySelector('.ta-dashboard-icon-glow--hover')).toBeTruthy();
+  });
+
+  it('refreshes the dashboard group badge source when a group realtime event arrives', async () => {
+    render(
+      <MemoryRouter>
+        <TAPortal />
+      </MemoryRouter>,
+    );
+
+    expect(subscribeToRealtimeTablesMock).toHaveBeenCalledWith(
+      'ta-dashboard-pending-group-requests',
+      expect.arrayContaining([
+        expect.objectContaining({ table: 'student_group_join_requests' }),
+        expect.objectContaining({ table: 'student_group_members' }),
+        expect.objectContaining({ table: 'student_groups' }),
+      ]),
+      expect.any(Function),
+    );
+
+    await act(async () => {
+      realtimeHandler?.();
+    });
+    expect(dashboardRefetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('hides Issue Queue and falls back to the dashboard when it was previously persisted', async () => {
