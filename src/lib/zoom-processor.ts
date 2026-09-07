@@ -46,6 +46,23 @@ export interface ZoomProcessorResult {
   session_end_time?: string;
 }
 
+export interface ZoomDisplayIdentity {
+  erp: string;
+  studentName: string;
+  isValid: boolean;
+}
+
+export interface ZoomRosterSuggestion extends ZoomRosterStudent {
+  score: number;
+}
+
+export interface ZoomTimingSummary {
+  officialMinutes: number;
+  breakMinutes: number;
+  effectiveMinutes: number;
+  requiredMinutes: number;
+}
+
 const ERP_NAME_PATTERN = /^(\d{5})_(.+)$/;
 const ERP_PREFIX_PATTERN = /^(\d{5})(?:_|\s|$)/;
 
@@ -260,6 +277,76 @@ const extractIdentity = (name: string) => {
   return {
     erp: validMatch?.[1] ?? prefixMatch?.[1] ?? '',
     isValid: Boolean(validMatch?.[2]?.trim()),
+  };
+};
+
+/** Parse a Zoom display name without treating uncertain names as resolved. */
+export const parseZoomDisplayIdentity = (name: string): ZoomDisplayIdentity => {
+  const trimmed = text(name);
+  const validMatch = trimmed.match(ERP_NAME_PATTERN);
+  const prefixMatch = trimmed.match(ERP_PREFIX_PATTERN);
+  return {
+    erp: validMatch?.[1] ?? prefixMatch?.[1] ?? '',
+    studentName: validMatch?.[2]?.trim() ?? '',
+    isValid: Boolean(validMatch?.[2]?.trim()),
+  };
+};
+
+const normalizedName = (value: string) => normalizeName(value);
+
+/** Return deterministic, searchable roster suggestions for a Zoom issue. */
+export const getZoomResolutionSuggestions = (
+  issueName: string,
+  erpCandidate: string,
+  roster: ZoomRosterStudent[],
+  query = '',
+): ZoomRosterSuggestion[] => {
+  const parsed = parseZoomDisplayIdentity(issueName);
+  const candidateERP = text(erpCandidate) || parsed.erp;
+  const issueNameKey = normalizedName(parsed.studentName || issueName);
+  const queryKey = normalizedName(query);
+  return roster
+    .map((student) => {
+      const erp = text(student.erp);
+      const nameKey = normalizedName(student.student_name);
+      const exactErp = Boolean(candidateERP && erp === candidateERP);
+      const exactName = Boolean(issueNameKey && nameKey === issueNameKey);
+      const namePrefix = Boolean(issueNameKey && nameKey.startsWith(issueNameKey));
+      const nameContains = Boolean(issueNameKey && (nameKey.includes(issueNameKey) || issueNameKey.includes(nameKey)));
+      const queryMatches = !queryKey || erp === candidateERP || normalizedName(`${erp} ${student.student_name}`).includes(queryKey);
+      const score = exactErp ? 100000 : exactName ? 90000 : namePrefix ? 80000 : nameContains ? 70000 : 0;
+      return { ...student, score: score + (queryMatches ? 1000 : 0) };
+    })
+    .filter((student) => !queryKey || student.erp === candidateERP || normalizedName(`${student.erp} ${student.student_name}`).includes(queryKey))
+    .sort((a, b) => b.score - a.score || a.student_name.localeCompare(b.student_name) || a.erp.localeCompare(b.erp));
+};
+
+export interface ZoomQuickAddInput {
+  erp: string;
+  studentName: string;
+  classNo: string;
+}
+
+export const validateZoomQuickAdd = (input: ZoomQuickAddInput, roster: ZoomRosterStudent[]) => {
+  const erp = text(input.erp);
+  const studentName = text(input.studentName);
+  const classNo = text(input.classNo);
+  if (!/^\d{5}$/.test(erp)) return { valid: false, error: 'ERP must be exactly five digits.' };
+  if (!studentName) return { valid: false, error: 'Enter the student name.' };
+  if (!classNo) return { valid: false, error: 'Select a class.' };
+  if (roster.some((student) => text(student.erp) === erp)) return { valid: false, error: 'That ERP is already in the roster.' };
+  return { valid: true as const, error: '' };
+};
+
+export const getZoomTimingSummary = (options: ZoomSessionTiming): ZoomTimingSummary => {
+  const bounds = getBounds({ ...options, manualDurationMinutes: null });
+  const breakMinutes = Math.max(parseNumber(options.namazBreakMinutes, 0), 0);
+  const effectiveMinutes = Math.max(bounds.duration - breakMinutes, 0);
+  return {
+    officialMinutes: round(bounds.duration),
+    breakMinutes: round(breakMinutes),
+    effectiveMinutes: round(effectiveMinutes),
+    requiredMinutes: round(effectiveMinutes * Math.min(Math.max(parseNumber(options.threshold, 0.8), 0), 1)),
   };
 };
 

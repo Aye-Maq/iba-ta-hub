@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   isValidZoomDisplayName,
+  getZoomResolutionSuggestions,
+  getZoomTimingSummary,
+  parseZoomDisplayIdentity,
   parseZoomCsv,
   processZoomAttendance,
   processZoomCsv,
+  validateZoomQuickAdd,
   type ZoomParticipantRecord,
   type ZoomRosterStudent,
 } from '@/lib/zoom-processor';
@@ -162,6 +166,28 @@ describe('zoom processor', () => {
     expect(isValidZoomDisplayName('12345_something completely different', '12345')).toBe(true);
     expect(isValidZoomDisplayName('12345', '12345')).toBe(false);
     expect(isValidZoomDisplayName('12345_Ali', '12345')).toBe(true);
+  });
+
+  it('ranks exact ERP suggestions before normalized-name matches and supports search', () => {
+    const suggestions = getZoomResolutionSuggestions('12345_Ali', '', [
+      { erp: '23456', student_name: 'Ali Asghar', class_no: '101809' },
+      { erp: '12345', student_name: 'Different Name', class_no: '101809' },
+      { erp: '34567', student_name: 'Alicia Khan', class_no: '101810' },
+    ], 'ali');
+    expect(suggestions.map((student) => student.erp)).toEqual(['12345', '23456', '34567']);
+    expect(parseZoomDisplayIdentity('12345_Ali Example')).toEqual({ erp: '12345', studentName: 'Ali Example', isValid: true });
+  });
+
+  it('shows the official timing benchmark and validates quick-add inputs', () => {
+    expect(getZoomTimingSummary({ sessionDate: '2026-09-03', startTime: '08:30', endTime: '09:45', namazBreakMinutes: 15 })).toEqual({
+      officialMinutes: 75,
+      breakMinutes: 15,
+      effectiveMinutes: 60,
+      requiredMinutes: 48,
+    });
+    expect(validateZoomQuickAdd({ erp: '12345', studentName: 'New Student', classNo: '101809' }, [])).toEqual({ valid: true, error: '' });
+    expect(validateZoomQuickAdd({ erp: '1234', studentName: 'New Student', classNo: '101809' }, [])).toMatchObject({ valid: false });
+    expect(validateZoomQuickAdd({ erp: '12345', studentName: 'New Student', classNo: '101809' }, roster)).toMatchObject({ valid: false, error: expect.stringContaining('already') });
   });
 
   it('builds an editable save draft from report statuses and penalties', () => {
