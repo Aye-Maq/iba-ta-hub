@@ -32,6 +32,7 @@ import { STUDENT_SERIAL_CLASS, STUDENT_SERIAL_HEADER } from '@/lib/student-table
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import { readScopedSessionStorage, writeScopedSessionStorage } from '@/lib/scoped-session-storage';
 import type { ZoomSessionReport } from '@/lib/zoom-session-report';
+import { buildZoomAttendanceDraft, type AttendanceDraftRow, zoomReportMatchesSession } from '@/lib/zoom-attendance-draft';
 import type {
   AgentCommandEnvelope,
   AttendanceAgentCommand,
@@ -101,6 +102,7 @@ export default function AttendanceMarking({
   const [absentErps, setAbsentErps] = useState(persistedState.absentErps);
 
   const [attendanceData, setAttendanceData] = useState<AttendanceRow[]>([]);
+  const [draftAttendance, setDraftAttendance] = useState<AttendanceDraftRow[]>([]);
   const [roster, setRoster] = useState<RosterRow[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -112,6 +114,12 @@ export default function AttendanceMarking({
   const [activeFilters, setActiveFilters] = useState<Set<AttendanceFilterToken>>(
     () => new Set(persistedState.activeFilters),
   );
+
+  useEffect(() => {
+    if (latestFinalZoomReport?.session_id) {
+      setSelectedSessionId(latestFinalZoomReport.session_id);
+    }
+  }, [latestFinalZoomReport?.session_id]);
 
   const autoSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const markRefreshedRef = useRef<() => void>(() => {});
@@ -148,7 +156,29 @@ export default function AttendanceMarking({
     }
 
     setAttendanceData([]);
+    setDraftAttendance([]);
   }, [selectedSessionId]);
+
+  useEffect(() => {
+    if (
+      !latestFinalZoomReport ||
+      !selectedSessionId ||
+      !zoomReportMatchesSession(latestFinalZoomReport, selectedSessionId) ||
+      attendanceData.length > 0 ||
+      roster.length === 0
+    ) {
+      if (attendanceData.length > 0 || !latestFinalZoomReport) setDraftAttendance([]);
+      return;
+    }
+
+    setDraftAttendance(
+      buildZoomAttendanceDraft(
+        latestFinalZoomReport,
+        roster.map((student) => ({ erp: student.erp, student_name: student.student_name, class_no: student.class_no })),
+        selectedSessionId,
+      ),
+    );
+  }, [attendanceData.length, latestFinalZoomReport, roster, selectedSessionId]);
 
   useEffect(() => {
     const stageLabel = !selectedSessionId
@@ -173,7 +203,7 @@ export default function AttendanceMarking({
         absent: String(activeFilters.has('absent')),
         penalized: String(activeFilters.has('penalized')),
       },
-      actionTargets: attendanceData.slice(0, 150).map((record) => ({
+      actionTargets: (attendanceData.length > 0 ? attendanceData : draftAttendance).slice(0, 150).map((record) => ({
         kind: 'student' as const,
         id: record.id,
         label: record.student_name,
@@ -186,7 +216,7 @@ export default function AttendanceMarking({
         },
       })),
     });
-  }, [activeFilters, attendanceData, onHelpContextChange, searchQuery, showOverwriteAlert]);
+  }, [activeFilters, attendanceData, draftAttendance, onHelpContextChange, searchQuery, showOverwriteAlert]);
 
   useEffect(() => {
     const unsubscribe = subscribeRosterDataUpdated(() => {
@@ -437,12 +467,36 @@ export default function AttendanceMarking({
         .filter(Boolean);
       const absentSet = new Set(absentList);
 
-      const newRecords: AttendanceInsert[] = roster.map((student) => ({
-        session_id: selectedSessionId,
-        erp: student.erp,
-        status: absentSet.has(student.erp.toLowerCase()) ? 'absent' : 'present',
-        naming_penalty: false,
-      }));
+      const reportBelongsToSession = Boolean(
+        latestFinalZoomReport &&
+          zoomReportMatchesSession(latestFinalZoomReport, selectedSessionId),
+      );
+      const reportRowsByErp = new Map(
+        reportBelongsToSession
+          ? latestFinalZoomReport!.attendance_rows.map((row) => [String(row.ERP ?? row.erp ?? '').trim(), row])
+          : [],
+      );
+      const draftRowsByErp = new Map(draftAttendance.map((row) => [row.erp, row]));
+
+      const newRecords: AttendanceInsert[] = roster.map((student) => {
+        const reportRow = reportRowsByErp.get(student.erp);
+        const draftRow = reportBelongsToSession ? draftRowsByErp.get(student.erp) : undefined;
+        const reportStatus = String(draftRow?.status ?? reportRow?.Status ?? reportRow?.status ?? '').toLowerCase();
+        const status: AttendanceStatus = reportStatus === 'excused' || reportStatus === 'present' || reportStatus === 'absent'
+          ? reportStatus
+          : absentSet.has(student.erp.toLowerCase()) ? 'absent' : 'present';
+        const penaltyValue = draftRow?.naming_penalty ?? reportRow?.['Name Penalty'] ?? reportRow?.['Naming Penalty'] ?? reportRow?.naming_penalty;
+        const namingPenalty = status === 'present' && (
+          penaltyValue === -1 || penaltyValue === true || String(penaltyValue ?? '').trim() === '-1'
+        );
+
+        return {
+          session_id: selectedSessionId,
+          erp: student.erp,
+          status,
+          naming_penalty: namingPenalty,
+        };
+      });
 
       if (forceOverwrite || attendanceData.length > 0) {
         await deleteAttendanceBySession(selectedSessionId);
@@ -451,9 +505,19 @@ export default function AttendanceMarking({
       await insertAttendance(newRecords);
 
       let zoomReportSaved = false;
-      if (latestFinalZoomReport) {
+      if (latestFinalZoomReport && reportBelongsToSession) {
         try {
-          await updateSessionZoomReport(selectedSessionId, latestFinalZoomReport, new Date().toISOString());
+          const savedRowsByErp = new Map(newRecords.map((record) => [record.erp, record]));
+          const reportForStorage: ZoomSessionReport = {
+            ...latestFinalZoomReport,
+            attendance_rows: latestFinalZoomReport.attendance_rows.map((row) => {
+              const savedRow = savedRowsByErp.get(String(row.ERP ?? row.erp ?? '').trim());
+              return savedRow
+                ? { ...row, Status: savedRow.status, 'Name Penalty': savedRow.naming_penalty ? -1 : 0 }
+                : row;
+            }),
+          };
+          await updateSessionZoomReport(selectedSessionId, reportForStorage, new Date().toISOString());
           zoomReportSaved = true;
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : 'Unknown error';
@@ -514,6 +578,11 @@ export default function AttendanceMarking({
     const currentIndex = statuses.indexOf(record.status);
     const nextStatus = statuses[(currentIndex + 1) % statuses.length];
 
+    if (record.id.startsWith('zoom-draft-')) {
+      setDraftAttendance((prev) => prev.map((row) => (row.id === record.id ? { ...row, status: nextStatus } : row)));
+      return;
+    }
+
     setAttendanceData((prev) => prev.map((row) => (row.id === record.id ? { ...row, status: nextStatus } : row)));
 
     try {
@@ -529,6 +598,10 @@ export default function AttendanceMarking({
   };
 
   const toggleNamingPenalty = async (record: AttendanceRow, checked: boolean) => {
+    if (record.id.startsWith('zoom-draft-')) {
+      setDraftAttendance((prev) => prev.map((row) => (row.id === record.id ? { ...row, naming_penalty: checked } : row)));
+      return;
+    }
     setAttendanceData((prev) => prev.map((row) => (row.id === record.id ? { ...row, naming_penalty: checked } : row)));
 
     try {
@@ -555,7 +628,8 @@ export default function AttendanceMarking({
     });
   };
 
-  const filteredAttendance = attendanceData.filter((record) => {
+  const displayedAttendance = attendanceData.length > 0 ? attendanceData : draftAttendance;
+  const filteredAttendance = displayedAttendance.filter((record) => {
     if (activeFilters.has('present') && record.status !== 'present') {
       return false;
     }
@@ -576,10 +650,10 @@ export default function AttendanceMarking({
     return record.erp.toLowerCase().includes(query) || record.student_name?.toLowerCase().includes(query);
   });
 
-  const presentCount = attendanceData.filter((record) => record.status === 'present').length;
-  const absentCount = attendanceData.filter((record) => record.status === 'absent').length;
-  const excusedCount = attendanceData.filter((record) => record.status === 'excused').length;
-  const penalizedCount = attendanceData.filter((record) => record.naming_penalty).length;
+  const presentCount = displayedAttendance.filter((record) => record.status === 'present').length;
+  const absentCount = displayedAttendance.filter((record) => record.status === 'absent').length;
+  const excusedCount = displayedAttendance.filter((record) => record.status === 'excused').length;
+  const penalizedCount = displayedAttendance.filter((record) => record.naming_penalty).length;
   const { markRefreshed } = useStaleRefreshOnFocus(
     () => requestRefresh('background'),
     { staleAfterMs: 60_000 },
@@ -669,7 +743,9 @@ export default function AttendanceMarking({
             <div className="space-y-2">
               <CardTitle>Attendance List</CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Changes to status and penalties save automatically
+                {draftAttendance.length > 0
+                  ? 'Review the proposed Zoom results. Click status or name penalty to edit before saving.'
+                  : 'Changes to status and penalties save automatically'}
               </CardDescription>
             </div>
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
@@ -688,7 +764,7 @@ export default function AttendanceMarking({
           </div>
         </CardHeader>
         <CardContent>
-          {selectedSessionId && attendanceData.length > 0 && (
+          {selectedSessionId && displayedAttendance.length > 0 && (
             <div className="mb-4 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="ta-status-chip status-present status-present-table-text">
@@ -704,7 +780,7 @@ export default function AttendanceMarking({
                   {penalizedCount} Penalized
                 </Badge>
                 <Badge variant="outline" className="ta-status-chip status-all text-debossed-sm">
-                  {attendanceData.length} / {roster.length} Total
+                  {displayedAttendance.length} / {roster.length} Total
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -715,7 +791,7 @@ export default function AttendanceMarking({
                   className={`ta-status-filter group ${activeFilters.size === 0 ? 'active' : ''}`}
                 >
                   <span className="status-led status-all-led" />
-                  <span className="status-all-text text-debossed-sm">All ({attendanceData.length})</span>
+                  <span className="status-all-text text-debossed-sm">All ({displayedAttendance.length})</span>
                 </Button>
                 <Button
                   size="sm"
@@ -753,7 +829,7 @@ export default function AttendanceMarking({
             <div className="flex justify-center p-8">
               <Loader2 className="animate-spin" />
             </div>
-          ) : attendanceData.length === 0 ? (
+          ) : displayedAttendance.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">No attendance marked for this session yet.</div>
           ) : (
               <Table scrollClassName="overflow-x-auto">

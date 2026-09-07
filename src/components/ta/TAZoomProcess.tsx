@@ -4,6 +4,7 @@ import { Button } from '@/components/ta/ui/button';
 import { Label } from '@/components/ta/ui/label';
 import { Input } from '@/components/ta/ui/input';
 import { Switch } from '@/components/ta/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ta/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ta/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ta/ui/table';
 import { Checkbox } from '@/components/ta/ui/checkbox';
@@ -18,6 +19,7 @@ import {
   Copy,
   Download,
   AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { subscribeRosterDataUpdated } from '@/lib/data-sync-events';
@@ -29,7 +31,9 @@ import type {
   HelpContextSnapshot,
   ZoomAgentCommand,
 } from '@/lib/ta-help-actions';
-import { getCurrentSessionEmail, listRosterReference } from '@/features/zoom';
+import { listRosterReference } from '@/features/zoom';
+import { listSessions, type SessionRow } from '@/features/sessions';
+import { processZoomCsv, type ZoomRosterStudent } from '@/lib/zoom-processor';
 import {
   readScopedSessionStorage,
   removeScopedSessionStorage,
@@ -48,6 +52,15 @@ interface ProcessedData {
   total_class_minutes?: number;
   effective_threshold_minutes?: number;
   rows?: number;
+  effective_class_minutes?: number;
+  matched_participant_count?: number;
+  unmatched_participant_count?: number;
+  session_id?: string;
+  session_number?: number;
+  session_date?: string;
+  session_start_time?: string;
+  session_end_time?: string;
+  source_zoom_file_name?: string;
 }
 
 interface RosterReference {
@@ -82,18 +95,19 @@ interface ZoomWorkspaceCache {
   activeTab: string;
   step: 'upload' | 'review' | 'results';
   useSavedRoster: boolean;
-  manualDuration: string;
   namazBreak: string;
   filterQuery: string;
   filterClass: string;
   penaltiesMinusOneOnly: boolean;
   ignoredKeys: string[];
+  selectedSessionId?: string;
   filterName?: string;
   filterErp?: string;
 }
 
 interface TAZoomProcessProps {
   onFinalReportReady?: (report: ZoomSessionReport | null) => void;
+  onSendToAttendance?: (report: ZoomSessionReport) => void;
   reportLoadRequest?: ZoomReportLoadRequest | null;
   onReportLoadHandled?: () => void;
   onContextChange?: (context: string | null) => void;
@@ -111,12 +125,12 @@ const getDefaultZoomWorkspaceState = (): ZoomWorkspaceCache => ({
   activeTab: 'matches',
   step: 'upload',
   useSavedRoster: true,
-  manualDuration: '',
   namazBreak: '',
   filterQuery: '',
   filterClass: '',
   penaltiesMinusOneOnly: false,
   ignoredKeys: [],
+  selectedSessionId: '',
 });
 
 const toText = (value: unknown) => (value == null ? '' : String(value).trim());
@@ -142,6 +156,15 @@ const toProcessedData = (value: ProcessedData): ProcessedData => ({
   raw_rows: toRecordArray(value.raw_rows),
   total_class_minutes: value.total_class_minutes,
   effective_threshold_minutes: value.effective_threshold_minutes,
+  effective_class_minutes: value.effective_class_minutes,
+  matched_participant_count: value.matched_participant_count,
+  unmatched_participant_count: value.unmatched_participant_count,
+  session_id: value.session_id,
+  session_number: value.session_number,
+  session_date: value.session_date,
+  session_start_time: value.session_start_time,
+  session_end_time: value.session_end_time,
+  source_zoom_file_name: value.source_zoom_file_name,
   rows: value.rows,
 });
 
@@ -311,8 +334,29 @@ const exportRosterToWorkbookBlob = async (
   });
 };
 
+const readRosterFile = async (file: File): Promise<ZoomRosterStudent[]> => {
+  const XLSX = await import('xlsx');
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  const findValue = (row: Record<string, unknown>, candidates: string[]) => {
+    const candidateSet = new Set(candidates.map(normalizeHeaderKey));
+    const entry = Object.entries(row).find(([key]) => candidateSet.has(normalizeHeaderKey(key)));
+    return entry ? toText(entry[1]) : '';
+  };
+
+  return rows
+    .map((row) => ({
+      erp: findValue(row, ['ERP', 'ERP ID', 'Student ERP']),
+      student_name: findValue(row, ['Name', 'Full Name', 'Student Name']),
+      class_no: findValue(row, ['Class No', 'Class', 'Section']),
+    }))
+    .filter((row) => row.erp && row.student_name);
+};
+
 export default function TAZoomProcess({
   onFinalReportReady,
+  onSendToAttendance,
   reportLoadRequest,
   onReportLoadHandled,
   onContextChange,
@@ -340,8 +384,9 @@ export default function TAZoomProcess({
   const [zoomFile, setZoomFile] = useState<File | null>(null);
   const [rosterFile, setRosterFile] = useState<File | null>(null);
   const [useSavedRoster, setUseSavedRoster] = useState(() => cached?.useSavedRoster ?? true);
-  const [manualDuration, setManualDuration] = useState(() => cached?.manualDuration ?? '');
   const [namazBreak, setNamazBreak] = useState(() => cached?.namazBreak ?? '');
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState(() => cached?.selectedSessionId ?? '');
 
   const [filterQuery, setFilterQuery] = useState(() => {
     const cachedQuery = cached?.filterQuery?.trim();
@@ -359,7 +404,14 @@ export default function TAZoomProcess({
   const [penaltiesMinusOneOnly, setPenaltiesMinusOneOnly] = useState(() => cached?.penaltiesMinusOneOnly ?? false);
 
   const [ignoredKeys, setIgnoredKeys] = useState<Set<string>>(() => new Set(cached?.ignoredKeys ?? []));
+  const [issueAssignments, setIssueAssignments] = useState<Record<string, string>>({});
   const [rosterReference, setRosterReference] = useState<Record<string, RosterReference>>({});
+  const sourceContextKey = [
+    selectedSessionId,
+    useSavedRoster ? 'saved' : `file:${rosterFile?.name ?? ''}:${rosterFile?.size ?? 0}:${rosterFile?.lastModified ?? 0}`,
+    `${zoomFile?.name ?? ''}:${zoomFile?.size ?? 0}:${zoomFile?.lastModified ?? 0}`,
+  ].join('|');
+  const previousSourceContextRef = useRef(sourceContextKey);
   const selectCsvLabelRef = useRef<HTMLLabelElement>(null);
   const analyzeButtonRef = useRef<HTMLButtonElement>(null);
   const calculateButtonRef = useRef<HTMLButtonElement>(null);
@@ -399,6 +451,23 @@ export default function TAZoomProcess({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    void listSessions()
+      .then((items) => {
+        if (!cancelled) setSessions(items);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          toast.error(`Failed to load sessions: ${message}`);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const stageLabel =
       step === 'upload'
         ? 'Zoom Processor · upload step'
@@ -415,7 +484,7 @@ export default function TAZoomProcess({
       screenDescription: 'Upload Zoom data, review matches and issues, then calculate the final attendance results.',
       visibleControls:
         step === 'upload'
-          ? ['SELECT CSV', 'Use Saved', 'CUSTOM DURATION (MINS)', 'NAMAZ BREAK (MINS)', 'Analyze Matrix', 'Calculate Attendance']
+          ? ['SELECT CSV', 'Use Saved', 'Session', 'NAMAZ BREAK (MINS)', 'Analyze Matrix', 'Calculate Attendance']
           : step === 'review'
             ? ['Matches', 'Issues', 'Unidentified', 'Raw Zoom Log', 'Calculate Attendance']
             : ['Attendance', 'Absent', 'Penalties', 'Matches', 'Issues', 'Unidentified', 'Raw Zoom Log', 'Copy Absent ERPs'],
@@ -444,15 +513,15 @@ export default function TAZoomProcess({
       activeTab,
       step,
       useSavedRoster,
-      manualDuration,
       namazBreak,
       filterQuery,
       filterClass,
       penaltiesMinusOneOnly,
       ignoredKeys: Array.from(ignoredKeys),
+      selectedSessionId,
     };
 
-    if (!data && step === 'upload' && ignoredKeys.size === 0 && !filterQuery && !filterClass && !manualDuration && !namazBreak && useSavedRoster && !penaltiesMinusOneOnly) {
+    if (!data && step === 'upload' && ignoredKeys.size === 0 && !filterQuery && !filterClass && !namazBreak && useSavedRoster && !penaltiesMinusOneOnly) {
       removeScopedSessionStorage(TA_STORAGE_SCOPE, userEmail, ZOOM_WORKSPACE_STORAGE_KEY);
       return;
     }
@@ -463,18 +532,21 @@ export default function TAZoomProcess({
     activeTab,
     step,
     useSavedRoster,
-    manualDuration,
     namazBreak,
     filterQuery,
     filterClass,
     penaltiesMinusOneOnly,
     ignoredKeys,
+    selectedSessionId,
     userEmail,
   ]);
 
   useEffect(() => {
+    if (previousSourceContextRef.current === sourceContextKey) return;
+    previousSourceContextRef.current = sourceContextKey;
     setIgnoredKeys(new Set());
-  }, [data]);
+    setIssueAssignments({});
+  }, [sourceContextKey]);
 
   useEffect(() => {
     if (!isCalculating) {
@@ -508,6 +580,12 @@ export default function TAZoomProcess({
       raw_rows: normalizedReport.raw_rows,
       total_class_minutes: normalizedReport.total_class_minutes,
       effective_threshold_minutes: normalizedReport.effective_threshold_minutes,
+      effective_class_minutes: normalizedReport.effective_class_minutes,
+      matched_participant_count: normalizedReport.matched_participant_count,
+      unmatched_participant_count: normalizedReport.unmatched_participant_count,
+      session_id: normalizedReport.session_id,
+      session_number: normalizedReport.session_number,
+      session_date: normalizedReport.session_date,
       rows: normalizedReport.rows,
     };
 
@@ -522,6 +600,7 @@ export default function TAZoomProcess({
     setIsCalculating(false);
     setZoomFile(null);
     setRosterFile(null);
+    if (normalizedReport.session_id) setSelectedSessionId(normalizedReport.session_id);
     onFinalReportReady?.(normalizedReport);
     toast.success(`Loaded saved Zoom report for session #${reportLoadRequest.sessionNumber}`);
     onReportLoadHandled?.();
@@ -550,9 +629,6 @@ export default function TAZoomProcess({
         }
         break;
       case 'set-parameters':
-        if (agentCommand.command.manualDuration !== undefined) {
-          setManualDuration(agentCommand.command.manualDuration);
-        }
         if (agentCommand.command.namazBreak !== undefined) {
           setNamazBreak(agentCommand.command.namazBreak);
         }
@@ -574,6 +650,11 @@ export default function TAZoomProcess({
 
   const rosterErpSet = useMemo(() => new Set(Object.keys(rosterReference)), [rosterReference]);
   const rosterCount = Object.keys(rosterReference).length;
+  const selectedSession = useMemo(
+    () => sessions.find((session) => session.id === selectedSessionId) ?? null,
+    [selectedSessionId, sessions],
+  );
+  const sessionReady = Boolean(selectedSession?.start_time && selectedSession?.end_time);
 
   const normalizedRows = useMemo(() => {
     const attendanceRows = toRecordArray(data?.attendance_rows);
@@ -713,33 +794,7 @@ export default function TAZoomProcess({
     toast.success(`Copied ${normalizedRows.unidentifiedIssues.length} unidentified row(s)`);
   };
 
-  const fetchSavedRosterBlob = async (): Promise<Blob | null> => {
-    try {
-      const actorEmail = await getCurrentSessionEmail();
-      if (!actorEmail) {
-        throw new Error('Not authenticated. Please log in again.');
-      }
-
-      const students = await listRosterReference();
-      if (!students || students.length === 0) {
-        throw new Error('No students found in saved roster. Upload roster first in Roster Management.');
-      }
-
-      const mappedStudents = students.map((student) => ({
-        'Class No': student.class_no,
-        Name: student.student_name,
-        ERP: student.erp,
-      }));
-      return await exportRosterToWorkbookBlob(mappedStudents);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to load roster.';
-      console.error('Error fetching saved roster:', error);
-      toast.error('Failed to load saved roster', { description: message });
-      return null;
-    }
-  };
-
-  const processFile = async (targetStep: 'review' | 'results') => {
+  const processFile = async (targetStep: 'review' | 'results', assignments = issueAssignments) => {
     if (!zoomFile) {
       toast.error('Please select a Zoom CSV file first.');
       return;
@@ -754,78 +809,34 @@ export default function TAZoomProcess({
     const loadingToast = toast.loading(targetStep === 'review' ? 'Analyzing matches...' : 'Generating attendance...');
 
     try {
-      const formData = new FormData();
-      formData.append('file', zoomFile);
-      formData.append('threshold', '0.8');
-
-      if (manualDuration) formData.append('manual_duration', manualDuration);
-      if (namazBreak) formData.append('namaz_break', namazBreak);
-
-      if (useSavedRoster) {
-        const rosterBlob = await fetchSavedRosterBlob();
-        if (!rosterBlob) {
-          throw new Error('Could not load saved roster.');
-        }
-
-        formData.append('roster', rosterBlob, 'saved_roster.xlsx');
-      } else if (rosterFile) {
-        formData.append('roster', rosterFile);
+      const selectedSession = sessions.find((session) => session.id === selectedSessionId);
+      const savedRoster = useSavedRoster
+        ? await listRosterReference()
+        : rosterFile
+          ? await readRosterFile(rosterFile)
+          : [];
+      if (savedRoster.length === 0) {
+        throw new Error('No students found in the selected roster. Upload a roster first in Roster Management.');
+      }
+      if (!selectedSession || !selectedSession.start_time || !selectedSession.end_time) {
+        throw new Error('Select a saved session with both start and end times before processing.');
       }
 
-      const apiUrl = import.meta.env.VITE_ZOOM_API_URL;
-      if (!import.meta.env.DEV && !apiUrl) {
-        throw new Error('VITE_ZOOM_API_URL is not configured. Add it to your deployment environment variables.');
-      }
-
-      const endpoint = import.meta.env.DEV ? '/api/process' : `${apiUrl}/api/process`;
-
-      console.groupCollapsed('[Zoom Process] Request context');
-      console.log('Mode:', import.meta.env.DEV ? 'development' : 'production');
-      console.log('Endpoint:', endpoint);
-      console.log(
-        'Form fields:',
-        [...formData.entries()].map(([key, value]) => `${key}: ${typeof value === 'object' ? (value as File).name : value}`)
-      );
-      console.groupEnd();
-
-      let response: Response;
-      try {
-        response = await fetch(endpoint, {
-          method: 'POST',
-          body: formData,
-        });
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Unknown network failure';
-        throw new Error(`Network error while reaching Zoom processor API: ${message}`);
-      }
-
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        let errorMessage = responseText;
-        try {
-          const parsedError = JSON.parse(responseText) as { error?: string; message?: string };
-          errorMessage = parsedError.error || parsedError.message || responseText;
-        } catch {
-          // Keep raw text fallback.
-        }
-
-        throw new Error(`Backend error (${response.status}): ${errorMessage}`);
-      }
-
-      let parsedResult: unknown;
-      try {
-        parsedResult = JSON.parse(responseText);
-      } catch {
-        throw new Error('Backend returned non-JSON response. Check /api/process logs.');
-      }
-
-      if (!parsedResult || typeof parsedResult !== 'object') {
-        throw new Error('Unexpected response shape from backend.');
-      }
-
-      const nextData = parsedResult as ProcessedData;
-      const nextProcessedData = toProcessedData(nextData);
+      const parsedResult = await processZoomCsv(await zoomFile.text(), savedRoster, {
+        sessionDate: selectedSession.session_date,
+        startTime: selectedSession.start_time,
+        endTime: selectedSession.end_time,
+        namazBreakMinutes: namazBreak ? Number(namazBreak) : 0,
+        threshold: 0.8,
+        sourceFileName: zoomFile.name,
+        participantAssignments: assignments,
+      });
+      const nextProcessedData = toProcessedData({
+        ...parsedResult,
+        session_id: selectedSession?.id,
+        session_number: selectedSession?.session_number,
+        session_date: selectedSession?.session_date,
+      });
       setData(nextProcessedData);
 
       setStep(targetStep);
@@ -837,6 +848,9 @@ export default function TAZoomProcess({
           schema_version: 1,
           generated_at: new Date().toISOString(),
           source_zoom_file_name: zoomFile?.name,
+          session_id: selectedSession?.id,
+          session_number: selectedSession?.session_number,
+          session_date: selectedSession?.session_date,
         });
         onFinalReportReady?.(finalReport);
       }
@@ -863,6 +877,17 @@ export default function TAZoomProcess({
     event.target.value = '';
     setStep('upload');
     setData(null);
+    onFinalReportReady?.(null);
+  };
+
+  const handleSessionChange = (sessionId: string) => {
+    if (sessionId === selectedSessionId) return;
+    setSelectedSessionId(sessionId);
+    setData(null);
+    setStep('upload');
+    setActiveTab('matches');
+    setIgnoredKeys(new Set());
+    setIssueAssignments({});
     onFinalReportReady?.(null);
   };
 
@@ -1128,6 +1153,69 @@ export default function TAZoomProcess({
     );
   };
 
+  const renderIssuesReview = (rows: GenericRow[]) => {
+    if (rows.length === 0) return <div className="p-8 text-center text-muted-foreground">No unresolved participants.</div>;
+    return (
+      <div className="overflow-x-auto rounded-xl border border-[#141517]">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Zoom Name</TableHead>
+              <TableHead>ERP Candidate</TableHead>
+              <TableHead>Attended Minutes</TableHead>
+              <TableHead>Reason</TableHead>
+              <TableHead>Resolve to roster student</TableHead>
+              <TableHead>Ignore</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, index) => {
+              const key = getRowKey(row, index);
+              const assignedERP = issueAssignments[key] ?? '';
+              const ignored = ignoredKeys.has(key);
+              return (
+                <TableRow key={key}>
+                  <TableCell className="whitespace-nowrap font-mono text-xs">{extractName(row)}</TableCell>
+                  <TableCell className="font-mono text-xs">{extractERP(row) || 'N/A'}</TableCell>
+                  <TableCell>{String(row['Attended Minutes'] ?? '')}</TableCell>
+                  <TableCell>{extractReason(row)}</TableCell>
+                  <TableCell className="min-w-[220px]">
+                    <Select
+                      value={assignedERP}
+                      onValueChange={(erp) => {
+                        const nextAssignments = { ...issueAssignments, [key]: erp };
+                        setIssueAssignments(nextAssignments);
+                        setIgnoredKeys((previous) => {
+                          const next = new Set(previous);
+                          next.delete(key);
+                          return next;
+                        });
+                        void processFile(step === 'results' ? 'results' : 'review', nextAssignments);
+                      }}
+                      disabled={isProcessing || ignored}
+                    >
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select ERP" /></SelectTrigger>
+                      <SelectContent>
+                        {Object.values(rosterReference).map((student) => (
+                          <SelectItem key={student.erp} value={student.erp}>
+                            {student.erp} · {student.student_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Checkbox checked={ignored} onCheckedChange={() => toggleIgnoreKey(key)} aria-label={`Ignore ${extractName(row)}`} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
   const renderUnidentifiedRows = () => {
     if (normalizedRows.unidentifiedIssues.length === 0) {
       return (
@@ -1303,9 +1391,9 @@ export default function TAZoomProcess({
                 type="button"
                 className={cn(
                   'mt-8 h-[52px] w-full neo-btn neo-out flex items-center justify-center gap-3 text-[15px] tracking-wide uppercase',
-                  isProcessing && 'opacity-50 cursor-not-allowed pointer-events-none'
+                  (isProcessing || !sessionReady) && 'opacity-50 cursor-not-allowed pointer-events-none'
                 )}
-                onClick={() => processFile('review')} disabled={isProcessing}
+                onClick={() => processFile('review')} disabled={isProcessing || !sessionReady}
               >
                 {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
                 Analyze Matrix
@@ -1314,7 +1402,7 @@ export default function TAZoomProcess({
           </CardContent>
         </Card>
 
-        <Card className={`neo-out border-0 shadow-none ${step === 'upload' ? 'pointer-events-none opacity-50' : ''}`}>
+        <Card className="neo-out border-0 shadow-none">
           <CardHeader className="mx-4 border-b border-[#141517] px-0 pb-4 pt-4 sm:mx-6 sm:pt-6">
             <CardTitle className="flex items-center gap-3 text-[15px] font-semibold text-debossed">
               Parameters
@@ -1322,8 +1410,25 @@ export default function TAZoomProcess({
           </CardHeader>
           <CardContent className="space-y-5 pt-4 sm:pt-6">
             <div className="space-y-2.5">
-              <Label className="uppercase text-[11px] font-bold text-debossed-sm tracking-wider">Custom Duration (mins)</Label>
-              <Input type="number" placeholder="Auto" value={manualDuration} onChange={(event) => setManualDuration(event.target.value)} className="neo-in h-12" />
+              <Label className="uppercase text-[11px] font-bold tracking-wider text-debossed-sm">Session</Label>
+              <Select value={selectedSessionId} onValueChange={handleSessionChange} disabled={isProcessing}>
+                <SelectTrigger className="neo-in h-12">
+                  <SelectValue placeholder="Select session" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sessions.map((session) => (
+                    <SelectItem key={session.id} value={session.id}>
+                      #{session.session_number} · {session.session_date}
+                      {session.start_time && session.end_time ? ` · ${session.start_time}–${session.end_time}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedSession && (
+                <p className="text-xs text-muted-foreground">
+                  Official window: {selectedSession.start_time || 'start not set'}–{selectedSession.end_time || 'end not set'}.
+                </p>
+              )}
             </div>
             <div className="space-y-2.5">
               <Label className="uppercase text-[11px] font-bold text-debossed-sm tracking-wider">Namaz Break (mins)</Label>
@@ -1339,7 +1444,7 @@ export default function TAZoomProcess({
                   : 'neo-btn neo-out'
               )}
               onClick={() => processFile('results')}
-              disabled={isProcessing || step === 'upload'}
+              disabled={isProcessing || step === 'upload' || !sessionReady}
             >
               {isCalculating ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -1384,6 +1489,36 @@ export default function TAZoomProcess({
                 <Badge variant="outline" className="ta-status-chip status-all">
                   Not In Roster: {diagnostics.notInRosterCount}
                 </Badge>
+                {step === 'results' && onSendToAttendance && (
+                  <Button
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => {
+                      const unresolvedCount = normalizedRows.issuesRows.filter((row, index) => {
+                        const key = getRowKey(row, index);
+                        return !issueAssignments[key] && !ignoredKeys.has(key);
+                      }).length;
+                      if (unresolvedCount > 0) {
+                        toast.error(`Resolve or ignore ${unresolvedCount} unresolved participant(s) before sending attendance.`);
+                        setActiveTab('issues');
+                        return;
+                      }
+                      const report = normalizeZoomSessionReport({
+                        ...data,
+                        schema_version: 1,
+                        generated_at: new Date().toISOString(),
+                        source_zoom_file_name: zoomFile?.name ?? data.source_zoom_file_name,
+                        session_id: data.session_id ?? selectedSession?.id,
+                        session_number: data.session_number ?? selectedSession?.session_number,
+                        session_date: data.session_date ?? selectedSession?.session_date,
+                      });
+                      if (report) onSendToAttendance(report);
+                    }}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                    Send to Live Attendance
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -1447,7 +1582,7 @@ export default function TAZoomProcess({
                       </div>
                     </div>
                   )}
-                  {renderTable(normalizedRows.issuesRows)}
+                  {renderIssuesReview(normalizedRows.issuesRows)}
                 </div>
               </TabsContent>
               <TabsContent value="unidentified" className="animate-fade-in">

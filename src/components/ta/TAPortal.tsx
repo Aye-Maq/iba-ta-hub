@@ -567,6 +567,11 @@ export default function TAPortal() {
               <Suspense fallback={MODULE_SUSPENSE_FALLBACK}>
                 <TAZoomProcess
                   onFinalReportReady={setLatestFinalZoomReport}
+                  onSendToAttendance={(report) => {
+                    setLatestFinalZoomReport(report);
+                    setAttendanceWorkspaceTab('attendance');
+                    setLoadedAttendanceTabs((prev) => new Set(prev).add('attendance'));
+                  }}
                   reportLoadRequest={pendingZoomReportLoad}
                   onReportLoadHandled={() => setPendingZoomReportLoad(null)}
                   onContextChange={setHelpModuleStage}
