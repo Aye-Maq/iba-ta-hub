@@ -27,7 +27,7 @@ export default function AttendanceView({ previewErp = null, isPreview = false }:
     };
     const getReason = (record: StudentAttendanceRecord) => {
         if (record.explanation_code === 'excused') return 'Excused';
-        if (record.explanation_code === 'manual_or_legacy') return 'Recorded manually or before detailed tracking was available.';
+        if (record.explanation_code === 'manual_or_legacy') return 'Recorded manually.';
         if (record.naming_penalty) return 'Present · Name format incorrect';
         if (record.explanation_code === 'no_zoom_match') return 'Absent · No matching Zoom record';
         if (record.explanation_code === 'below_cutoff') {

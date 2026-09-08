@@ -38,6 +38,6 @@ describe('AttendanceView transparency', () => {
     render(<AttendanceView />);
     expect(screen.getByText('6')).toHaveClass('text-orange-600');
     fireEvent.click(screen.getByText(/View details/));
-    expect(screen.getByText('Recorded manually or before detailed tracking was available.')).toBeInTheDocument();
+    expect(screen.getByText('Recorded manually.')).toBeInTheDocument();
   });
 });
