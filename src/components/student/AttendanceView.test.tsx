@@ -26,7 +26,7 @@ describe('AttendanceView transparency', () => {
     });
     render(<AttendanceView />);
     expect(screen.getByText('Date unavailable')).toBeInTheDocument();
-    expect(screen.getByText('5')).toHaveClass('text-foreground');
+    expect(screen.getByText('5')).toHaveClass('text-pink-600');
     fireEvent.click(screen.getByText(/View details/));
     expect(screen.getByText('50 min')).toBeInTheDocument();
     expect(screen.getByText('Cutoff was met, but the ERP_name format was invalid, so a name penalty was applied.')).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe('AttendanceView transparency', () => {
   it('shows the legacy fallback and amber allowance state at six absences', () => {
     useStudentAttendanceQueryMock.mockReturnValue({ isLoading: false, data: { total_absences: 6, total_naming_penalties: 0, records: [{ session_number: 2, session_date: '2026-09-04', day_of_week: 'Friday', status: 'absent', naming_penalty: false, details_available: false, explanation_code: 'manual_or_legacy' }] } });
     render(<AttendanceView />);
-    expect(screen.getByText('6')).toHaveClass('text-amber-600');
+    expect(screen.getByText('6')).toHaveClass('text-orange-600');
     fireEvent.click(screen.getByText(/View details/));
     expect(screen.getByText('Recorded manually or before detailed tracking was available. Detailed Zoom evidence is unavailable.')).toBeInTheDocument();
   });

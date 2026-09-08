@@ -26,6 +26,8 @@ import {
   respondToGroupJoinRequest,
   buildGroupsCsv,
   useGroupAdminState,
+  orderGroupMembers,
+  isGroupPoc,
 } from '@/features/groups';
 import { listLateDaysAdminData } from '@/features/late-days';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ta/ui/alert-dialog';
@@ -815,7 +817,9 @@ export default function GroupsManagement({
                         <div>
                           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Members</div>
                           <div className="mt-2 text-sm text-muted-foreground">
-                            {group.members.map((member) => `${member.student_name} (${member.erp})`).join(', ')}
+                            {orderGroupMembers(group).map((member) => (
+                              `${member.student_name} (${member.erp})${isGroupPoc(group, member.erp) ? ' · POC' : ''}`
+                            )).join(', ')}
                           </div>
                         </div>
                         <div>

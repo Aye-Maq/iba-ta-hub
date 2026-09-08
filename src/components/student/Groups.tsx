@@ -13,6 +13,8 @@ import {
   studentLeaveGroup,
   studentRemoveGroupMember,
   useStudentGroupsState,
+  orderGroupMembers,
+  isGroupPoc,
   type GroupSummary,
 } from '@/features/groups';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -208,9 +210,9 @@ export default function Groups() {
                     ? 'This group is locked for student edits. Only TAs can change membership now.'
                     : isCreator
                       ? creatorMustStay
-                         ? 'You created this group. You can review join requests until the lock time, but you must stay until the group has no other members.'
-                         : 'You created this group. You can review join requests until the lock time.'
-                       : 'You can stay in this group or leave it until the lock time. Only the creator can review join requests.'}
+                         ? 'You are the group POC. You can review join requests until the lock time, but you must stay until the group has no other members.'
+                         : 'You are the group POC. You can review join requests until the lock time.'
+                       : 'You can stay in this group or leave it until the lock time. Only the group POC can review join requests.'}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -250,8 +252,8 @@ export default function Groups() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentGroup.members.map((member, index) => {
-                    const memberIsCreator = currentGroup.created_by_role === 'student' && currentGroup.created_by_erp === member.erp;
+                  {orderGroupMembers(currentGroup).map((member, index) => {
+                    const memberIsCreator = currentGroup.created_by_role === 'student' && isGroupPoc(currentGroup, member.erp);
                     return (
                       <TableRow key={member.erp}>
                         <TableCell className={STUDENT_SERIAL_CLASS}>{index + 1}</TableCell>
@@ -260,7 +262,7 @@ export default function Groups() {
                         <TableCell>{member.class_no}</TableCell>
                         <TableCell>
                           <Badge variant={memberIsCreator ? 'default' : 'outline'}>
-                            {memberIsCreator ? 'Creator' : member.erp === data.student_erp ? 'You' : 'Member'}
+                            {memberIsCreator ? 'POC' : member.erp === data.student_erp ? 'You' : 'Member'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">

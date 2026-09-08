@@ -5,6 +5,7 @@ import { ChevronDown, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useStudentAttendanceQuery, type StudentAttendanceRecord } from '@/features/attendance';
 import { getAbsenceCountClass, getAbsenceCountMessage } from '@/lib/absence-display';
+import AttendanceDemoPreview from './AttendanceDemoPreview';
 
 export default function AttendanceView() {
     const { erp } = useERP();
@@ -42,6 +43,7 @@ export default function AttendanceView() {
 
     return (
         <div className="space-y-6">
+            {import.meta.env.DEV ? <AttendanceDemoPreview /> : null}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Card>
                     <CardHeader className="pb-2">
@@ -81,18 +83,18 @@ export default function AttendanceView() {
                                 </div>
                                 <span className="flex items-center gap-1 text-right text-xs text-muted-foreground"><span>{record.naming_penalty ? 'Name penalty (-1)' : 'No name penalty'} · View details</span><ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" /></span>
                             </summary>
-                            <div className="border-t px-4 pb-4 pt-3 text-sm">
+                            <div className="border-t px-4 pb-3 pt-2 text-sm">
                                 {record.naming_penalty && <p className="mb-3 text-destructive">Cutoff was met, but the ERP_name format was invalid, so a name penalty was applied.</p>}
                                 {record.details_available ? (
-                                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                    <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
                                         <div><span className="text-muted-foreground">Official window</span><p>{record.session_start_time || 'Unavailable'}–{record.session_end_time || 'Unavailable'}</p></div>
                                         <div><span className="text-muted-foreground">Official duration</span><p>{formatMinutes(record.official_minutes)}</p></div>
                                         <div><span className="text-muted-foreground">Effective duration</span><p>{formatMinutes(record.effective_minutes)} · Break {formatMinutes(record.namaz_break_minutes)}</p></div>
                                         <div><span className="text-muted-foreground">Attended</span><p>{formatMinutes(record.attended_minutes)}</p></div>
                                         <div><span className="text-muted-foreground">Required (80%)</span><p>{formatMinutes(record.required_minutes)}</p></div>
                                         <div><span className="text-muted-foreground">Shortfall</span><p>{formatMinutes(record.shortfall_minutes)}</p></div>
-                                        <div className="sm:col-span-2 lg:col-span-3"><span className="text-muted-foreground">Explanation</span><p>{getExplanation(record)}</p></div>
-                                        <div><span className="text-muted-foreground">Your Zoom name</span><p className="break-words">{record.zoom_names || 'No matching Zoom name'}</p></div>
+                                        <div className="sm:col-span-2 lg:col-span-3"><span className="text-muted-foreground">Reason</span><p>{getExplanation(record)}</p></div>
+                                        <div><span className="text-muted-foreground">Actual Zoom name</span><p className="break-words">{record.zoom_names || 'No matching Zoom name'}</p></div>
                                         <div><span className="text-muted-foreground">Name format</span><p>{record.name_format || 'Unavailable'}</p></div>
                                         <div><span className="text-muted-foreground">Match method</span><p>{record.match_method || 'Unavailable'}</p></div>
                                     </div>

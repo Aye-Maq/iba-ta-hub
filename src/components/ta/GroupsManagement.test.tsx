@@ -42,6 +42,8 @@ vi.mock('@/lib/auth', () => ({
 }));
 
 vi.mock('@/features/groups', () => ({
+  orderGroupMembers: (group: { created_by_erp?: string | null; members: Array<{ erp: string }> }) => [...group.members].sort((a, b) => Number(a.erp !== group.created_by_erp) - Number(b.erp !== group.created_by_erp)),
+  isGroupPoc: (group: { created_by_erp?: string | null }, erp: string) => Boolean(group.created_by_erp && group.created_by_erp === erp),
   useGroupAdminState: useGroupAdminStateMock,
   taSetStudentGroup: taSetStudentGroupMock,
   taAdjustAllGroupLateDays: taAdjustAllGroupLateDaysMock,
@@ -180,5 +182,6 @@ describe('GroupsManagement', () => {
     expect(screen.getByLabelText('1 pending join requests')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /assign/i }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Test Student \(00000\) · POC/)).toBeInTheDocument();
   }, 15000);
 });
