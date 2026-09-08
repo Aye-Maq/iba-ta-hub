@@ -26,18 +26,27 @@ export const useStudentGroupsState = (enabled: boolean) => {
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<AppError | null>(null);
   const hasLoadedOnceRef = useRef(false);
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchData = useCallback(async (mode: 'initial' | 'background') => {
     const showInitialLoader = mode === 'initial' && !hasLoadedOnceRef.current;
-    if (showInitialLoader) setIsLoading(true);
-    setError(null);
+    if (showInitialLoader && isMountedRef.current) setIsLoading(true);
+    if (isMountedRef.current) setError(null);
     try {
-      setData(await getStudentGroupsState());
+      const nextData = await getStudentGroupsState();
+      if (isMountedRef.current) setData(nextData);
       hasLoadedOnceRef.current = true;
     } catch (err) {
-      setError(toAppError(err, 'student_groups_state_fetch_failed'));
+      if (isMountedRef.current) setError(toAppError(err, 'student_groups_state_fetch_failed'));
     } finally {
-      if (showInitialLoader) setIsLoading(false);
+      if (showInitialLoader && isMountedRef.current) setIsLoading(false);
     }
   }, []);
 
@@ -62,18 +71,27 @@ export const useGroupAdminState = (enabled = true) => {
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<AppError | null>(null);
   const hasLoadedOnceRef = useRef(false);
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchData = useCallback(async (mode: 'initial' | 'background') => {
     const showInitialLoader = mode === 'initial' && !hasLoadedOnceRef.current;
-    if (showInitialLoader) setIsLoading(true);
-    setError(null);
+    if (showInitialLoader && isMountedRef.current) setIsLoading(true);
+    if (isMountedRef.current) setError(null);
     try {
-      setData(await listGroupAdminState());
+      const nextData = await listGroupAdminState();
+      if (isMountedRef.current) setData(nextData);
       hasLoadedOnceRef.current = true;
     } catch (err) {
-      setError(toAppError(err, 'group_admin_state_fetch_failed'));
+      if (isMountedRef.current) setError(toAppError(err, 'group_admin_state_fetch_failed'));
     } finally {
-      if (showInitialLoader) setIsLoading(false);
+      if (showInitialLoader && isMountedRef.current) setIsLoading(false);
     }
   }, []);
 

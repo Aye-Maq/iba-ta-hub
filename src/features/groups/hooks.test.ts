@@ -42,4 +42,18 @@ describe('group state refresh behavior', () => {
     expect(result.current.data.viewer_email).toBe('ta@example.com');
     expect(result.current.error?.code).toBe('group_admin_state_fetch_failed');
   });
+
+  it('ignores a late initial response after the hook unmounts', async () => {
+    let resolveRequest!: (value: typeof adminState) => void;
+    vi.mocked(listGroupAdminState).mockReturnValueOnce(new Promise((resolve) => { resolveRequest = resolve; }));
+    const { unmount } = renderHook(() => useGroupAdminState(true));
+
+    unmount();
+    await act(async () => {
+      resolveRequest(adminState);
+      await Promise.resolve();
+    });
+
+    expect(listGroupAdminState).toHaveBeenCalledOnce();
+  });
 });
