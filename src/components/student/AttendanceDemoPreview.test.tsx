@@ -11,6 +11,6 @@ describe('AttendanceDemoPreview', () => {
     expect(screen.getByText('Absent')).toBeInTheDocument();
     expect(screen.getByText('Name penalty')).toBeInTheDocument();
     expect(screen.getByText('12345_Demo Student')).toBeInTheDocument();
-    expect(screen.getByText('Cutoff met, but the ERP_name format was invalid.')).toBeInTheDocument();
+    expect(screen.getByText('Present · Name format incorrect.')).toBeInTheDocument();
   });
 });

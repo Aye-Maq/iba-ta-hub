@@ -29,7 +29,7 @@ describe('AttendanceView transparency', () => {
     expect(screen.getByText('5')).toHaveClass('text-pink-600');
     fireEvent.click(screen.getByText(/View details/));
     expect(screen.getByText('50 min')).toBeInTheDocument();
-    expect(screen.getByText('Cutoff was met, but the ERP_name format was invalid, so a name penalty was applied.')).toBeInTheDocument();
+    expect(screen.getByText('Present · Name format incorrect')).toBeInTheDocument();
     expect(screen.getByText('12345_student')).toBeInTheDocument();
   });
 

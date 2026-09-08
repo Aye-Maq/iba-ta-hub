@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import GroupsManagement from './GroupsManagement';
 
@@ -12,6 +12,7 @@ const {
   taAdjustAllGroupLateDaysMock,
   taClearGroupRosterMock,
   taCreateGroupMock,
+  taSetGroupPocMock,
   taEnableGroupEditingAllMock,
   taEnableGroupEditingSelectedMock,
   taSetGroupEditDeadlineAllMock,
@@ -22,6 +23,7 @@ const {
   taAdjustAllGroupLateDaysMock: vi.fn(),
   taClearGroupRosterMock: vi.fn(),
   taCreateGroupMock: vi.fn(),
+  taSetGroupPocMock: vi.fn(),
   taEnableGroupEditingAllMock: vi.fn(),
   taEnableGroupEditingSelectedMock: vi.fn(),
   taSetGroupEditDeadlineAllMock: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock('@/features/groups', () => ({
   taAdjustAllGroupLateDays: taAdjustAllGroupLateDaysMock,
   taClearGroupRoster: taClearGroupRosterMock,
   taCreateGroup: taCreateGroupMock,
+  taSetGroupPoc: taSetGroupPocMock,
   taEnableGroupEditingAll: taEnableGroupEditingAllMock,
   taEnableGroupEditingSelected: taEnableGroupEditingSelectedMock,
   taSetGroupEditDeadlineAll: taSetGroupEditDeadlineAllMock,
@@ -183,5 +186,7 @@ describe('GroupsManagement', () => {
     expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /assign/i }).length).toBeGreaterThan(0);
     expect(screen.getByText(/Test Student \(00000\) · POC/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /create group/i }));
+    expect(await screen.findByRole('combobox', { name: 'Group POC' })).toBeInTheDocument();
   }, 15000);
 });

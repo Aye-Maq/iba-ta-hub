@@ -70,11 +70,10 @@ export default function Groups() {
     () => data.groups.find((group) => group.id === data.current_group_id) ?? null,
     [data.current_group_id, data.groups],
   );
-  const isCreator =
-    currentGroup?.created_by_role === 'student' && currentGroup.created_by_erp === data.student_erp;
-  const canManageMembers = Boolean(currentGroup && isCreator && !currentGroup.is_locked);
+  const isCreator = Boolean(currentGroup && isGroupPoc(currentGroup, data.student_erp));
+  const canManageMembers = Boolean(currentGroup && currentGroup.created_by_role === 'student' && isCreator && !currentGroup.is_locked);
   const canLeaveGroup = Boolean(currentGroup && !currentGroup.is_locked);
-  const creatorMustStay = Boolean(currentGroup && isCreator && currentGroup.member_count > 1);
+  const creatorMustStay = Boolean(currentGroup && currentGroup.created_by_role === 'student' && isCreator && currentGroup.member_count > 1);
 
   const joinableGroups = useMemo(
     () =>
@@ -253,7 +252,7 @@ export default function Groups() {
                 </TableHeader>
                 <TableBody>
                   {orderGroupMembers(currentGroup).map((member, index) => {
-                    const memberIsCreator = currentGroup.created_by_role === 'student' && isGroupPoc(currentGroup, member.erp);
+                    const memberIsCreator = isGroupPoc(currentGroup, member.erp);
                     return (
                       <TableRow key={member.erp}>
                         <TableCell className={STUDENT_SERIAL_CLASS}>{index + 1}</TableCell>

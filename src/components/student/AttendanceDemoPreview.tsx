@@ -26,7 +26,7 @@ const DEMO_ROWS = [
     zoomName: 'Demo Student',
     attended: '55 min',
     required: '48 min',
-    detail: 'Cutoff met, but the ERP_name format was invalid.',
+    detail: 'Present · Name format incorrect.',
     className: 'border-pink-500/30',
   },
 ] as const;

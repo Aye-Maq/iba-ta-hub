@@ -18,6 +18,7 @@ import {
   taAdjustAllGroupLateDays,
   taClearGroupRoster,
   taCreateGroup,
+  taSetGroupPoc,
   taEnableGroupEditingAll,
   taEnableGroupEditingSelected,
   taSetGroupEditDeadlineAll,
@@ -38,6 +39,7 @@ import { Checkbox } from '@/components/ta/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ta/ui/dialog';
 import { Input } from '@/components/ta/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ta/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ta/ui/select';
 
 const TA_STORAGE_SCOPE = 'ta';
 const GROUPS_MANAGEMENT_STORAGE_KEY = 'module-groups';
@@ -141,10 +143,19 @@ export default function GroupsManagement({
   const [createGroupName, setCreateGroupName] = useState('');
   const [createGroupDeadline, setCreateGroupDeadline] = useState(defaultDeadlineValue);
   const [selectedCreateStudentErps, setSelectedCreateStudentErps] = useState<string[]>([]);
+  const [createPocErp, setCreatePocErp] = useState('');
+  const [pocDrafts, setPocDrafts] = useState<Record<string, string>>({});
   const [deadlineDialogScope, setDeadlineDialogScope] = useState<DeadlineScope>(null);
   const [deadlineInput, setDeadlineInput] = useState(defaultDeadlineValue);
   const lastHandledAgentCommandTokenRef = useRef<number | null>(null);
   const rosterSearchInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedCreateStudents = useMemo(
+    () => data.roster
+      .filter((entry) => selectedCreateStudentErps.includes(entry.erp))
+      .sort((a, b) => a.class_no.localeCompare(b.class_no) || a.student_name.localeCompare(b.student_name) || a.erp.localeCompare(b.erp)),
+    [data.roster, selectedCreateStudentErps],
+  );
 
   const fetchGroupLateDays = useCallback(async () => {
     const lateDaysData = await listLateDaysAdminData();
@@ -284,6 +295,35 @@ export default function GroupsManagement({
     }
     void fetchGroupLateDays();
   }, [fetchGroupLateDays, userEmail]);
+
+  useEffect(() => {
+    const availableErps = new Set(data.roster.map((entry) => entry.erp));
+    setSelectedCreateStudentErps((previous) => {
+      const next = previous.filter((erp) => availableErps.has(erp));
+      return next.length === previous.length ? previous : next;
+    });
+  }, [data.roster]);
+
+  useEffect(() => {
+    if (createPocErp && !selectedCreateStudentErps.includes(createPocErp)) {
+      setCreatePocErp('');
+    }
+  }, [createPocErp, selectedCreateStudentErps]);
+
+  useEffect(() => {
+    setPocDrafts((previous) => {
+      const next = { ...previous };
+      let changed = false;
+      data.groups.forEach((group) => {
+        const draft = next[group.id];
+        if (draft && !group.members.some((member) => member.erp === draft)) {
+          next[group.id] = group.created_by_erp ?? '';
+          changed = true;
+        }
+      });
+      return changed ? next : previous;
+    });
+  }, [data.groups]);
 
   useEffect(() => {
     if (!userEmail) {
@@ -564,6 +604,10 @@ export default function GroupsManagement({
       toast.error('Select at least one student for the new group.');
       return;
     }
+    if (!createPocErp || !selectedCreateStudentErps.includes(createPocErp)) {
+      toast.error('Select one group POC from the selected students.');
+      return;
+    }
     const deadline = new Date(createGroupDeadline);
     if (Number.isNaN(deadline.getTime())) {
       toast.error('Enter a valid edit deadline.');
@@ -575,6 +619,7 @@ export default function GroupsManagement({
         groupNumber,
         displayName: createGroupName,
         studentErps: selectedCreateStudentErps,
+        pocErp: createPocErp,
         editDeadline: deadline.toISOString(),
       });
       setData(result.state);
@@ -584,6 +629,7 @@ export default function GroupsManagement({
       setCreateGroupName('');
       setCreateGroupDeadline(defaultDeadlineValue());
       setSelectedCreateStudentErps([]);
+      setCreatePocErp('');
       setGroupedStudentSearch('');
       setUnassignedStudentSearch('');
       toast.success(`Created Group ${groupNumber}.`);
@@ -606,9 +652,13 @@ export default function GroupsManagement({
   };
 
   const toggleCreateStudent = (studentErp: string) => {
-    setSelectedCreateStudentErps((prev) =>
-      prev.includes(studentErp) ? prev.filter((value) => value !== studentErp) : [...prev, studentErp],
-    );
+    setSelectedCreateStudentErps((prev) => {
+      if (prev.includes(studentErp)) {
+        if (createPocErp === studentErp) setCreatePocErp('');
+        return prev.filter((value) => value !== studentErp);
+      }
+      return [...prev, studentErp];
+    });
   };
 
   const openCreateDialog = () => {
@@ -616,9 +666,26 @@ export default function GroupsManagement({
     setCreateGroupName('');
     setCreateGroupDeadline(defaultDeadlineValue());
     setSelectedCreateStudentErps([]);
+    setCreatePocErp('');
     setGroupedStudentSearch('');
     setUnassignedStudentSearch('');
     setIsCreateDialogOpen(true);
+  };
+
+  const handleSetGroupPoc = async (groupNumber: number, groupId: string) => {
+    const pocErp = pocDrafts[groupId] ?? data.groups.find((group) => group.id === groupId)?.created_by_erp ?? '';
+    if (!pocErp) {
+      toast.error('Select a current member as the group POC.');
+      return;
+    }
+    await runAction(`set-poc-${groupId}`, async () => {
+      const result = await taSetGroupPoc(groupNumber, pocErp);
+      setData(result.state);
+      setPocDrafts((previous) => ({ ...previous, [groupId]: pocErp }));
+      toast.success(`Group ${groupNumber} POC updated.`);
+    }).catch((error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to update group POC.'));
+    });
   };
 
   const openDeadlineDialog = (scope: DeadlineScope) => {
@@ -813,6 +880,37 @@ export default function GroupsManagement({
                         </div>
                       </div>
 
+                      <div className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+                        <div className="min-w-[240px] flex-1">
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Group POC</div>
+                          <Select
+                            value={pocDrafts[group.id] ?? group.created_by_erp ?? ''}
+                            onValueChange={(value) => setPocDrafts((previous) => ({ ...previous, [group.id]: value }))}
+                            disabled={group.members.length === 0}
+                          >
+                            <SelectTrigger aria-label={`Group ${group.group_number} POC`}>
+                              <SelectValue placeholder="Select a current member" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {orderGroupMembers(group).map((member) => (
+                                <SelectItem key={member.erp} value={member.erp}>
+                                  {member.student_name} · ERP {member.erp}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleSetGroupPoc(group.group_number, group.id)}
+                          disabled={busyAction === `set-poc-${group.id}` || !pocDrafts[group.id] || pocDrafts[group.id] === (group.created_by_erp ?? '')}
+                        >
+                          {busyAction === `set-poc-${group.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          Save POC
+                        </Button>
+                      </div>
+
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
                           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Members</div>
@@ -956,7 +1054,7 @@ export default function GroupsManagement({
           <DialogHeader>
             <DialogTitle>Create Group</DialogTitle>
             <DialogDescription>
-              Create a numbered group, optionally add a TA-only display name, choose an edit deadline, and select members from grouped and unassigned students.
+              Create a numbered group, choose its POC, optionally add a TA-only display name, and select members from grouped and unassigned students.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 md:grid-cols-3">
@@ -1031,6 +1129,24 @@ export default function GroupsManagement({
                 ))}
               </div>
             </div>
+          </div>
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <div className="mb-2 space-y-1">
+              <div className="font-semibold">Group POC <span className="text-destructive">*</span></div>
+              <div className="text-sm text-muted-foreground">Select exactly one current member. The POC appears first in the group table and CSV.</div>
+            </div>
+            <Select value={createPocErp} onValueChange={setCreatePocErp} disabled={selectedCreateStudents.length === 0}>
+              <SelectTrigger aria-label="Group POC">
+                <SelectValue placeholder={selectedCreateStudents.length === 0 ? 'Select members first' : 'Select a POC'} />
+              </SelectTrigger>
+              <SelectContent>
+                {selectedCreateStudents.map((entry) => (
+                  <SelectItem key={entry.erp} value={entry.erp}>
+                    {entry.student_name} · ERP {entry.erp} · Class {entry.class_no}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>

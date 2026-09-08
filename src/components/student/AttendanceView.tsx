@@ -19,13 +19,18 @@ export default function AttendanceView() {
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? 'Date unavailable' : format(date, 'PPP');
     };
-    const getExplanation = (record: StudentAttendanceRecord) => {
-        if (record.explanation_code === 'excused') return 'This session was marked excused.';
+    const getReason = (record: StudentAttendanceRecord) => {
+        if (record.explanation_code === 'excused') return 'Excused';
         if (record.explanation_code === 'manual_or_legacy') return 'Recorded manually or before detailed tracking was available. Detailed Zoom evidence is unavailable.';
-        if (record.explanation_code === 'no_zoom_match') return 'No matching Zoom attendance record was found.';
-        if (record.explanation_code === 'below_cutoff') return 'Attendance was below the required 80% cutoff.';
-        if (record.explanation_code === 'ta_override') return 'A TA recorded this as absent after the attendance cutoff was met.';
-        return 'Attendance was recorded as present.';
+        if (record.naming_penalty) return 'Present · Name format incorrect';
+        if (record.explanation_code === 'no_zoom_match') return 'Absent · No matching Zoom record';
+        if (record.explanation_code === 'below_cutoff') {
+            return record.shortfall_minutes == null
+                ? 'Absent · Below 80% cutoff'
+                : `Absent · ${formatMinutes(record.shortfall_minutes)} below cutoff`;
+        }
+        if (record.explanation_code === 'ta_override') return 'Absent · TA override';
+        return `${record.status.charAt(0).toUpperCase()}${record.status.slice(1)} · Cutoff met`;
     };
 
     if (isLoading) {
@@ -84,7 +89,6 @@ export default function AttendanceView() {
                                 <span className="flex items-center gap-1 text-right text-xs text-muted-foreground"><span>{record.naming_penalty ? 'Name penalty (-1)' : 'No name penalty'} · View details</span><ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" /></span>
                             </summary>
                             <div className="border-t px-4 pb-3 pt-2 text-sm">
-                                {record.naming_penalty && <p className="mb-3 text-destructive">Cutoff was met, but the ERP_name format was invalid, so a name penalty was applied.</p>}
                                 {record.details_available ? (
                                     <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
                                         <div><span className="text-muted-foreground">Official window</span><p>{record.session_start_time || 'Unavailable'}–{record.session_end_time || 'Unavailable'}</p></div>
@@ -93,12 +97,12 @@ export default function AttendanceView() {
                                         <div><span className="text-muted-foreground">Attended</span><p>{formatMinutes(record.attended_minutes)}</p></div>
                                         <div><span className="text-muted-foreground">Required (80%)</span><p>{formatMinutes(record.required_minutes)}</p></div>
                                         <div><span className="text-muted-foreground">Shortfall</span><p>{formatMinutes(record.shortfall_minutes)}</p></div>
-                                        <div className="sm:col-span-2 lg:col-span-3"><span className="text-muted-foreground">Reason</span><p>{getExplanation(record)}</p></div>
+                                        <div className="sm:col-span-2 lg:col-span-3"><span className="text-muted-foreground">Reason</span><p>{getReason(record)}</p></div>
                                         <div><span className="text-muted-foreground">Actual Zoom name</span><p className="break-words">{record.zoom_names || 'No matching Zoom name'}</p></div>
                                         <div><span className="text-muted-foreground">Name format</span><p>{record.name_format || 'Unavailable'}</p></div>
                                         <div><span className="text-muted-foreground">Match method</span><p>{record.match_method || 'Unavailable'}</p></div>
                                     </div>
-                                ) : <p className="text-muted-foreground">{getExplanation(record)}</p>}
+                                ) : <p className="text-muted-foreground">{getReason(record)}</p>}
                             </div>
                         </details>
                     ))}

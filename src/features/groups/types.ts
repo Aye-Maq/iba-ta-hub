@@ -92,6 +92,7 @@ export interface GroupCreateInput {
   groupNumber: number;
   displayName?: string | null;
   studentErps: string[];
+  pocErp: string;
   editDeadline: string;
 }
 

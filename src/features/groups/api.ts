@@ -346,14 +346,30 @@ export const taClearGroupRoster = async (): Promise<GroupClearRosterResult> => {
 };
 
 export const taCreateGroup = async (input: GroupCreateInput): Promise<GroupMutationResult<GroupAdminState>> => {
-  const { data, error } = await supabase.rpc('ta_create_group', {
+  const { data, error } = await supabase.rpc('ta_create_group_with_poc', {
     p_group_number: input.groupNumber,
     p_display_name: input.displayName?.trim() || null,
     p_student_erps: input.studentErps,
     p_edit_deadline: input.editDeadline,
+    p_poc_erp: input.pocErp,
   });
   if (error) {
     throw toAppError(error, 'ta_create_group_failed');
+  }
+
+  return makeAdminMutationResult(data);
+};
+
+export const taSetGroupPoc = async (
+  groupNumber: number,
+  pocErp: string,
+): Promise<GroupMutationResult<GroupAdminState>> => {
+  const { data, error } = await supabase.rpc('ta_set_group_poc', {
+    p_group_number: groupNumber,
+    p_poc_erp: pocErp,
+  });
+  if (error) {
+    throw toAppError(error, 'ta_set_group_poc_failed');
   }
 
   return makeAdminMutationResult(data);
