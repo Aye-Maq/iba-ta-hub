@@ -185,7 +185,9 @@ describe('GroupsManagement', () => {
     expect(screen.getByLabelText('1 pending join requests')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /assign/i }).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Test Student \(00000\) · POC/)).toBeInTheDocument();
+    expect(screen.getByText('Test Student (00000)')).toBeInTheDocument();
+    expect(screen.getByText('Ahsan (12345)')).toBeInTheDocument();
+    expect(screen.queryByText(/Test Student \(00000\).*POC/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /create group/i }));
     expect(await screen.findByRole('combobox', { name: 'Group POC' })).toBeInTheDocument();
   }, 15000);

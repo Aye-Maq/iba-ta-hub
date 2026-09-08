@@ -29,7 +29,6 @@ import {
   buildGroupsCsv,
   useGroupAdminState,
   orderGroupMembers,
-  isGroupPoc,
   type GroupSummary,
 } from '@/features/groups';
 import { listLateDaysAdminData } from '@/features/late-days';
@@ -946,10 +945,10 @@ export default function GroupsManagement({
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
                           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Members</div>
-                          <div className="mt-2 text-sm text-muted-foreground">
+                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                             {orderGroupMembers(group).map((member) => (
-                              `${member.student_name} (${member.erp})${isGroupPoc(group, member.erp) ? ' · POC' : ''}`
-                            )).join(', ')}
+                              <div key={member.erp}>{member.student_name} ({member.erp})</div>
+                            ))}
                           </div>
                         </div>
                         <div>
