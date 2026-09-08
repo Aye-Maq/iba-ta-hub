@@ -6,6 +6,7 @@ import type {
   GroupAdminState,
   GroupAdjustAllResult,
   GroupClearRosterResult,
+  GroupDeleteResult,
   GroupCreateInput,
   GroupDeadlineUpdateResult,
   GroupJoinRequest,
@@ -343,6 +344,26 @@ export const taClearGroupRoster = async (): Promise<GroupClearRosterResult> => {
   }
 
   return parseGroupClearRosterResult(data);
+};
+
+export const taDeleteGroup = async (groupNumber: number): Promise<GroupDeleteResult> => {
+  const { data, error } = await supabase.rpc('ta_delete_group', { p_group_number: groupNumber });
+  if (error) {
+    throw toAppError(error, 'ta_delete_group_failed');
+  }
+
+  if (!isObjectRecord(data)) {
+    throw new Error('Invalid group delete payload');
+  }
+
+  return {
+    success: data.success !== false,
+    group_number: toNumberOr(data.group_number, groupNumber),
+    removed_members: toNumberOr(data.removed_members),
+    removed_join_requests: toNumberOr(data.removed_join_requests),
+    removed_batches: toNumberOr(data.removed_batches),
+    removed_sync_adjustments: toNumberOr(data.removed_sync_adjustments),
+  };
 };
 
 export const taCreateGroup = async (input: GroupCreateInput): Promise<GroupMutationResult<GroupAdminState>> => {

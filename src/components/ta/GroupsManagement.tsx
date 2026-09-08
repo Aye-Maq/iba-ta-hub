@@ -18,6 +18,7 @@ import {
   taAdjustAllGroupLateDays,
   taClearGroupRoster,
   taCreateGroup,
+  taDeleteGroup,
   taSetGroupPoc,
   taEnableGroupEditingAll,
   taEnableGroupEditingSelected,
@@ -29,6 +30,7 @@ import {
   useGroupAdminState,
   orderGroupMembers,
   isGroupPoc,
+  type GroupSummary,
 } from '@/features/groups';
 import { listLateDaysAdminData } from '@/features/late-days';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ta/ui/alert-dialog';
@@ -136,6 +138,7 @@ export default function GroupsManagement({
   const [activeRosterFilter, setActiveRosterFilter] = useState<RosterFilter>(persistedState.activeRosterFilter);
   const [pendingRecomputeAll, setPendingRecomputeAll] = useState(Boolean(persistedState.pendingRecomputeAll));
   const [pendingClearRoster, setPendingClearRoster] = useState(Boolean(persistedState.pendingClearRoster));
+  const [pendingDeleteGroup, setPendingDeleteGroup] = useState<GroupSummary | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [claims, setClaims] = useState<LateDayClaim[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -551,6 +554,23 @@ export default function GroupsManagement({
     });
   };
 
+  const handleDeleteGroup = async () => {
+    if (!pendingDeleteGroup) return;
+    const groupNumber = pendingDeleteGroup.group_number;
+
+    await runAction(`delete-group-${groupNumber}`, async () => {
+      const result = await taDeleteGroup(groupNumber);
+      await refetch();
+      await fetchGroupLateDays();
+      setPendingDeleteGroup(null);
+      setSelectedGroupNumbers((previous) => previous.filter((value) => value !== groupNumber));
+      toast.success(`Deleted Group ${groupNumber}. Attendance and roster records were preserved.`);
+      return result;
+    }).catch((error: unknown) => {
+      toast.error(getErrorMessage(error, 'Failed to delete group.'));
+    });
+  };
+
   const handleEnableEditingAll = async () => {
     await runAction('enable-editing-all', async () => {
       const result = await taEnableGroupEditingAll();
@@ -875,8 +895,20 @@ export default function GroupsManagement({
                             </div>
                           </div>
                         </div>
-                        <div className="text-right text-xs text-muted-foreground">
-                          {group.is_locked ? 'Student edits locked' : `Editable until ${formatDate(group.student_edit_locked_at, 'PPP p')}`}
+                        <div className="flex flex-wrap items-center justify-end gap-2 text-right text-xs text-muted-foreground">
+                          <span>{group.is_locked ? 'Student edits locked' : `Editable until ${formatDate(group.student_edit_locked_at, 'PPP p')}`}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            title={`Delete Group ${group.group_number}`}
+                            aria-label={`Delete Group ${group.group_number}`}
+                            onClick={() => setPendingDeleteGroup(group)}
+                            disabled={busyAction === `delete-group-${group.group_number}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
 
@@ -1214,6 +1246,27 @@ export default function GroupsManagement({
             <AlertDialogAction onClick={() => void handleClearRoster()}>
               {busyAction === 'clear-groups' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               Delete All Groups
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingDeleteGroup !== null} onOpenChange={(open) => !open && setPendingDeleteGroup(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group {pendingDeleteGroup?.group_number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes only this group, its memberships, join requests, grouped claim-batch metadata, and derived shared-balance adjustments. Attendance, roster students, and original individual late-day claims remain intact.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleDeleteGroup()}
+              disabled={pendingDeleteGroup !== null && busyAction === `delete-group-${pendingDeleteGroup.group_number}`}
+            >
+              {pendingDeleteGroup !== null && busyAction === `delete-group-${pendingDeleteGroup.group_number}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              Delete Group
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

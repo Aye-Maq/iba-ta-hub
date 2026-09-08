@@ -19,7 +19,9 @@ import { useRefreshController } from '@/hooks/use-refresh-controller';
 import { STUDENT_SERIAL_HEADER } from '@/lib/student-table';
 import { getAbsenceCountClass } from '@/lib/absence-display';
 import { toast } from 'sonner';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Search, Upload } from 'lucide-react';
+import AttendanceView from '@/components/student/AttendanceView';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ta/ui/dialog';
 import type {
   AgentCommandEnvelope,
   ConsolidatedAgentCommand,
@@ -48,6 +50,9 @@ export default function ConsolidatedView({
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewQuery, setPreviewQuery] = useState('');
+  const [previewErp, setPreviewErp] = useState<string | null>(null);
   const hasLoadedOnceRef = useRef(false);
   const markRefreshedRef = useRef<() => void>(() => {});
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -184,6 +189,33 @@ export default function ConsolidatedView({
     });
   }, [searchQuery, students]);
 
+  const recommendedPreviewStudent = useMemo(
+    () => students.find((student) => {
+      const statuses = Object.values(student.session_status ?? {}).map((status) => status.toLowerCase());
+      return statuses.includes('present') && statuses.includes('absent') && student.total_penalties > 0;
+    }) ?? null,
+    [students],
+  );
+
+  const previewStudents = useMemo(() => {
+    const query = previewQuery.trim().toLowerCase();
+    const matches = query
+      ? students.filter((student) =>
+          student.student_name.toLowerCase().includes(query)
+          || student.erp.toLowerCase().includes(query)
+          || student.class_no.toLowerCase().includes(query),
+        )
+      : students;
+
+    return [...matches].sort((left, right) => {
+      const leftRecommended = left.erp === recommendedPreviewStudent?.erp ? 0 : 1;
+      const rightRecommended = right.erp === recommendedPreviewStudent?.erp ? 0 : 1;
+      return leftRecommended - rightRecommended
+        || left.student_name.localeCompare(right.student_name)
+        || left.erp.localeCompare(right.erp);
+    });
+  }, [previewQuery, recommendedPreviewStudent?.erp, students]);
+
   useEffect(() => {
     if (!isActive) {
       return;
@@ -298,6 +330,17 @@ export default function ConsolidatedView({
               {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               Sync Sheet
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPreviewErp(recommendedPreviewStudent?.erp ?? null);
+                setPreviewQuery('');
+                setIsPreviewOpen(true);
+              }}
+              disabled={students.length === 0}
+            >
+              Preview Student
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -401,6 +444,55 @@ export default function ConsolidatedView({
         )}
       </CardContent>
       </Card>
+
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Student Attendance Preview</DialogTitle>
+            <DialogDescription>
+              Read-only TA preview using the selected student&apos;s own attendance evidence. No student login or credentials are used.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input
+                aria-label="Search preview student"
+                placeholder="Search by name, ERP, or class"
+                className="pl-9"
+                value={previewQuery}
+                onChange={(event) => setPreviewQuery(event.target.value)}
+              />
+            </div>
+            <div className="grid max-h-44 gap-2 overflow-y-auto sm:grid-cols-2">
+              {previewStudents.slice(0, 20).map((student) => {
+                const isRecommended = student.erp === recommendedPreviewStudent?.erp;
+                return (
+                  <button
+                    key={student.erp}
+                    type="button"
+                    onClick={() => setPreviewErp(student.erp)}
+                    className={`min-w-0 rounded-lg border p-3 text-left transition hover:border-primary ${previewErp === student.erp ? 'border-primary bg-primary/10' : ''}`}
+                  >
+                    <span className="block truncate text-sm font-medium">{student.student_name}</span>
+                    <span className="block text-xs text-muted-foreground">ERP {student.erp} · Class {student.class_no}</span>
+                    {isRecommended ? <span className="mt-1 block text-xs text-primary">Recommended: present, absent, and name penalty</span> : null}
+                  </button>
+                );
+              })}
+              {previewStudents.length === 0 ? <p className="text-sm text-muted-foreground">No students match this search.</p> : null}
+            </div>
+            {previewErp ? (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <p className="mb-3 text-xs text-muted-foreground">Previewing ERP {previewErp}. This view is read-only.</p>
+                <AttendanceView previewErp={previewErp} isPreview />
+              </div>
+            ) : (
+              <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">Select a student to preview attendance details.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

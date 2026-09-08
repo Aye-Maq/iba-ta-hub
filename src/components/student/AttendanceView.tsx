@@ -1,4 +1,4 @@
-import { useERP } from '@/lib/erp-context';
+import { useOptionalERP } from '@/lib/erp-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, Loader2 } from 'lucide-react';
@@ -7,9 +7,15 @@ import { useStudentAttendanceQuery, type StudentAttendanceRecord } from '@/featu
 import { getAbsenceCountClass, getAbsenceCountMessage } from '@/lib/absence-display';
 import AttendanceDemoPreview from './AttendanceDemoPreview';
 
-export default function AttendanceView() {
-    const { erp } = useERP();
-    const { data: summary, isLoading } = useStudentAttendanceQuery(erp);
+interface AttendanceViewProps {
+    previewErp?: string | null;
+    isPreview?: boolean;
+}
+
+export default function AttendanceView({ previewErp = null, isPreview = false }: AttendanceViewProps = {}) {
+    const erpContext = useOptionalERP();
+    const viewedErp = previewErp ?? erpContext?.erp ?? null;
+    const { data: summary, isLoading } = useStudentAttendanceQuery(viewedErp);
     const attendance = summary.records;
     const totalAbsences = summary.total_absences;
     const totalNamingPenalties = summary.total_naming_penalties;
@@ -48,7 +54,7 @@ export default function AttendanceView() {
 
     return (
         <div className="space-y-6">
-            {import.meta.env.DEV ? <AttendanceDemoPreview /> : null}
+            {import.meta.env.DEV && !isPreview ? <AttendanceDemoPreview /> : null}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Card>
                     <CardHeader className="pb-2">

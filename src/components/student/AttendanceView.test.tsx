@@ -2,13 +2,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AttendanceView from './AttendanceView';
 
-const { useERPMock, useStudentAttendanceQueryMock } = vi.hoisted(() => ({ useERPMock: vi.fn(), useStudentAttendanceQueryMock: vi.fn() }));
-vi.mock('@/lib/erp-context', () => ({ useERP: useERPMock }));
+const { useOptionalERPMock, useStudentAttendanceQueryMock } = vi.hoisted(() => ({ useOptionalERPMock: vi.fn(), useStudentAttendanceQueryMock: vi.fn() }));
+vi.mock('@/lib/erp-context', () => ({ useOptionalERP: useOptionalERPMock }));
 vi.mock('@/features/attendance', () => ({ useStudentAttendanceQuery: useStudentAttendanceQueryMock }));
 
 describe('AttendanceView transparency', () => {
   beforeEach(() => {
-    useERPMock.mockReturnValue({ erp: '12345' });
+    useOptionalERPMock.mockReturnValue({ erp: '12345' });
   });
 
   it('expands Zoom evidence and safely renders an invalid legacy date', () => {

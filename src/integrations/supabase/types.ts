@@ -662,6 +662,10 @@ export type Database = {
         Args: { p_group_number: number }
         Returns: Json
       }
+      ta_delete_group: {
+        Args: { p_group_number: number }
+        Returns: Json
+      }
       ta_set_student_group: {
         Args: { p_group_number?: number; p_student_erp: string }
         Returns: Json

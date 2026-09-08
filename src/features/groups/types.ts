@@ -82,6 +82,15 @@ export interface GroupClearRosterResult {
   removed_sync_adjustments: number;
 }
 
+export interface GroupDeleteResult {
+  success: boolean;
+  group_number: number;
+  removed_members: number;
+  removed_join_requests: number;
+  removed_batches: number;
+  removed_sync_adjustments: number;
+}
+
 export interface GroupDeadlineUpdateResult {
   success: boolean;
   updated_groups: number;
