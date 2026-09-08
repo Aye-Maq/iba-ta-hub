@@ -52,6 +52,73 @@ $$;
 REVOKE ALL ON FUNCTION public.reassign_group_creator_if_needed(uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.reassign_group_creator_if_needed(uuid, text, text) TO authenticated;
 
+-- Keep the persisted POC aligned with membership when the current POC leaves.
+-- The legacy function only protected student-created groups and did not invoke
+-- the reassignment helper, which left TA-created POCs pointing at nonmembers.
+CREATE OR REPLACE FUNCTION public.student_leave_group()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_actor_erp text;
+  v_actor_email text;
+  v_group public.student_groups%ROWTYPE;
+  v_group_member_count integer := 0;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  v_actor_erp := public.current_student_erp_from_auth();
+  IF v_actor_erp IS NULL THEN
+    RAISE EXCEPTION 'Could not derive ERP from email';
+  END IF;
+  v_actor_email := auth.jwt() ->> 'email';
+
+  PERFORM pg_advisory_xact_lock(hashtext('student-group-member:' || v_actor_erp));
+
+  SELECT groups.*
+  INTO v_group
+  FROM public.student_group_members gm
+  JOIN public.student_groups groups
+    ON groups.id = gm.group_id
+  WHERE gm.student_erp = v_actor_erp
+  FOR UPDATE OF groups, gm;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'You are not assigned to a group';
+  END IF;
+
+  IF now() > v_group.student_edit_locked_at THEN
+    RAISE EXCEPTION 'This group is locked for student edits';
+  END IF;
+
+  SELECT COUNT(*)::integer
+  INTO v_group_member_count
+  FROM public.student_group_members
+  WHERE group_id = v_group.id;
+
+  IF v_group.created_by_role = 'student'
+     AND v_group.created_by_erp IS NOT DISTINCT FROM v_actor_erp
+     AND v_group_member_count > 1 THEN
+    RAISE EXCEPTION 'Group creator cannot leave while other members remain';
+  END IF;
+
+  DELETE FROM public.student_group_members
+  WHERE group_id = v_group.id
+    AND student_erp = v_actor_erp;
+
+  PERFORM public.reassign_group_creator_if_needed(v_group.id, v_actor_erp, v_actor_email);
+
+  RETURN public.get_student_groups_state();
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.student_leave_group() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.student_leave_group() TO authenticated;
+
 -- New name avoids an ambiguous PostgREST overload of the legacy four-argument
 -- ta_create_group function. The legacy function remains available to older
 -- clients, while the portal uses this validated five-argument entry point.
