@@ -17,8 +17,13 @@ export default function Layout({
   } = useAuth();
   const navigate = useNavigate();
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+    try {
+      await signOut();
+    } catch {
+      // Navigation still completes if the remote sign-out request fails.
+    } finally {
+      navigate('/', { replace: true });
+    }
   };
   return <div data-ui-surface="default" className="min-h-screen bg-background transition-colors duration-300">
     <header className="safe-sticky-header sticky top-0 z-50 w-full glass-morphism border-b border-primary/10">

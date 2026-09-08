@@ -1,10 +1,11 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import TAPortal from './TAPortal';
 
-const { useAuthMock, useGroupAdminStateMock, subscribeToRealtimeTablesMock, removeRealtimeChannelMock } = vi.hoisted(() => ({
+const { useAuthMock, signOutMock, useGroupAdminStateMock, subscribeToRealtimeTablesMock, removeRealtimeChannelMock } = vi.hoisted(() => ({
   useAuthMock: vi.fn(),
+  signOutMock: vi.fn(),
   useGroupAdminStateMock: vi.fn(),
   subscribeToRealtimeTablesMock: vi.fn(),
   removeRealtimeChannelMock: vi.fn(),
@@ -67,6 +68,11 @@ vi.mock('./ListsSettings', () => ({
   default: () => <div>Lists Settings Mock</div>,
 }));
 
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}</div>;
+}
+
 describe('TAPortal persistence', () => {
   const dashboardRefetchMock = vi.fn();
   let realtimeHandler: (() => void) | undefined;
@@ -87,8 +93,9 @@ describe('TAPortal persistence', () => {
 
     useAuthMock.mockReturnValue({
       user: { email: 'ayeshamaqsood5100@gmail.com' },
-      signOut: vi.fn(),
+      signOut: signOutMock,
     });
+    signOutMock.mockResolvedValue(undefined);
   });
 
   it('restores the persisted TA module', async () => {
@@ -148,6 +155,22 @@ describe('TAPortal persistence', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Chat with Aux' })).not.toBeInTheDocument();
+  });
+
+  it('returns to the public homepage after TA logout even if sign-out is slow or fails', async () => {
+    signOutMock.mockRejectedValueOnce(new Error('network unavailable'));
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <TAPortal />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'LOGOUT' }));
+
+    await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/'));
   });
 
   it('refreshes the dashboard group badge source when a group realtime event arrives', async () => {

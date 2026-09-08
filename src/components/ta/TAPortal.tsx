@@ -546,8 +546,13 @@ export default function TAPortal() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+    try {
+      await signOut();
+    } catch {
+      // Navigation still completes if the remote sign-out request fails.
+    } finally {
+      navigate('/', { replace: true });
+    }
   };
 
   const getModuleContext = () => {
