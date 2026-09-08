@@ -140,6 +140,16 @@ describe('TAPortal persistence', () => {
     expect(zoomCard.querySelector('.ta-dashboard-icon-glow--hover')).toBeTruthy();
   });
 
+  it('does not render the floating help assistant launcher', async () => {
+    render(
+      <MemoryRouter>
+        <TAPortal />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Chat with Aux' })).not.toBeInTheDocument();
+  });
+
   it('refreshes the dashboard group badge source when a group realtime event arrives', async () => {
     render(
       <MemoryRouter>

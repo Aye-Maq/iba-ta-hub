@@ -49,6 +49,10 @@ import PortalLoadingScreen from '@/components/PortalLoadingScreen';
 import TAHelpAssistant from './TAHelpAssistant';
 import { useGroupAdminState } from '@/features/groups';
 
+// Keep the assistant implementation available for a future re-enable without
+// exposing the floating launcher in the live portal.
+const SHOW_TA_HELP_ASSISTANT = false;
+
 const TAZoomProcess = lazy(() => import('./TAZoomProcess'));
 const AttendanceMarking = lazy(() => import('./AttendanceMarking'));
 const SessionManagement = lazy(() => import('./SessionManagement'));
@@ -915,7 +919,7 @@ export default function TAPortal() {
         </AnimatePresence>
       </div>
 
-      <TAHelpAssistant snapshot={helpSnapshot} onRunAction={handleRunHelpAction} />
+      {SHOW_TA_HELP_ASSISTANT ? <TAHelpAssistant snapshot={helpSnapshot} onRunAction={handleRunHelpAction} /> : null}
     </div>
   );
 }
