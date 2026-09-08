@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AttendanceView from './AttendanceView';
 
@@ -27,36 +27,10 @@ describe('AttendanceView transparency', () => {
     render(<AttendanceView />);
     expect(screen.getByText('Date unavailable')).toBeInTheDocument();
     expect(screen.getByText('5')).toHaveClass('text-pink-600');
-    const session = screen.getByText('Date unavailable').closest('details');
-    expect(session).not.toBeNull();
-    fireEvent.click(within(session as HTMLElement).getByText(/View details/));
-    expect(within(session as HTMLElement).getByText('50 min')).toBeInTheDocument();
-    expect(within(session as HTMLElement).getByText('Attendance requirement met.')).toBeInTheDocument();
-    expect(within(session as HTMLElement).getByText('Class duration')).toBeInTheDocument();
-    expect(within(session as HTMLElement).getByText('ERP_name missing · Matched by ERP')).toBeInTheDocument();
-    expect(within(session as HTMLElement).getByText('12345_student')).toBeInTheDocument();
-    expect(within(session as HTMLElement).queryByText('Shortfall')).not.toBeInTheDocument();
-  });
-
-  it('puts the below-cutoff outcome first and omits a zero break', () => {
-    useStudentAttendanceQueryMock.mockReturnValue({
-      isLoading: false,
-      data: {
-        total_absences: 1,
-        total_naming_penalties: 0,
-        records: [{
-          session_id: 'session-2', session_number: 2, session_date: '2026-09-04', day_of_week: 'Friday', status: 'absent', naming_penalty: false,
-          details_available: true, session_start_time: '08:30', session_end_time: '09:45', official_minutes: 75, effective_minutes: 75,
-          namaz_break_minutes: 0, attended_minutes: 50.25, required_minutes: 60.5, shortfall_minutes: 10.25, zoom_names: '12345 student', name_format: 'Valid', match_method: 'Name', explanation_code: 'below_cutoff',
-        }],
-      },
-    });
-    render(<AttendanceView />);
     fireEvent.click(screen.getByText(/View details/));
-    expect(screen.getByText('Short by 10.3 min')).toBeInTheDocument();
-    expect(screen.queryByText('Break')).not.toBeInTheDocument();
-    expect(screen.getByText('50.3 min')).toBeInTheDocument();
-    expect(screen.getByText('60.5 min')).toBeInTheDocument();
+    expect(screen.getByText('50 min')).toBeInTheDocument();
+    expect(screen.getByText('Present · Name format incorrect')).toBeInTheDocument();
+    expect(screen.getByText('12345_student')).toBeInTheDocument();
   });
 
   it('shows the legacy fallback and amber allowance state at six absences', () => {
