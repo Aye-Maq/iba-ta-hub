@@ -3,10 +3,12 @@ import { Loader2, Users, UserPlus, UserMinus, LogOut, Lock, Check, X } from 'luc
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/date-format';
+import { sendNtfyNotification } from '@/lib/ntfy';
 import { STUDENT_SERIAL_CLASS, STUDENT_SERIAL_HEADER } from '@/lib/student-table';
 import { removeRealtimeChannel, subscribeToRealtimeTables } from '@/lib/realtime-table-subscriptions';
 import {
   studentCreateGroup,
+  studentAddGroupMember,
   studentJoinGroup,
   studentCancelGroupJoinRequest,
   respondToGroupJoinRequest,
@@ -41,8 +43,8 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 export default function Groups() {
   const { user } = useAuth();
   const { data, setData, isLoading, isUpdating, refetch } = useStudentGroupsState(Boolean(user?.email));
-  const [createGroupNumber, setCreateGroupNumber] = useState('');
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [memberSearch, setMemberSearch] = useState('');
 
   useEffect(() => {
     if (!user?.email) {
@@ -71,9 +73,10 @@ export default function Groups() {
     [data.current_group_id, data.groups],
   );
   const isCreator = Boolean(currentGroup && isGroupPoc(currentGroup, data.student_erp));
-  const canManageMembers = Boolean(currentGroup && currentGroup.created_by_role === 'student' && isCreator && !currentGroup.is_locked);
+  const canManageMembers = Boolean(currentGroup && isCreator && !currentGroup.is_locked);
   const canLeaveGroup = Boolean(currentGroup && !currentGroup.is_locked);
   const creatorMustStay = Boolean(currentGroup && currentGroup.created_by_role === 'student' && isCreator && currentGroup.member_count > 1);
+  const formationLocked = Boolean(data.group_formation_deadline && new Date(data.group_formation_deadline).getTime() < Date.now());
 
   const joinableGroups = useMemo(
     () =>
@@ -91,17 +94,12 @@ export default function Groups() {
   };
 
   const handleCreateGroup = async () => {
-    const groupNumber = Number(createGroupNumber);
-    if (!Number.isInteger(groupNumber) || groupNumber < 1) {
-      toast.error('Enter a valid positive group number.');
-      return;
-    }
-
     await runAction('create-group', async () => {
-      const result = await studentCreateGroup(groupNumber);
+      const result = await studentCreateGroup();
       setData(result.state);
-      setCreateGroupNumber('');
-      toast.success(`${getGroupDisplayName(groupNumber)} created.`);
+      const createdGroup = result.state.groups.find((group) => group.id === result.state.current_group_id);
+      void sendNtfyNotification({ title: 'New Group Created', message: `ERP ${data.student_erp} created Group ${createdGroup?.group_number ?? '-'}.`, tags: ['groups', 'student'] });
+      toast.success(`${createdGroup ? getGroupDisplayName(createdGroup.group_number) : 'Group'} created.`);
     }).catch((error: unknown) => {
       toast.error(getErrorMessage(error, 'Failed to create group.'));
     });
@@ -111,6 +109,7 @@ export default function Groups() {
     await runAction(`join-${groupNumber}`, async () => {
       const result = await studentJoinGroup(groupNumber);
       setData(result.state);
+      void sendNtfyNotification({ title: 'Group Join Request', message: `ERP ${data.student_erp} requested to join Group ${groupNumber}.`, tags: ['groups', 'student'] });
       toast.success(`Request sent to ${getGroupDisplayName(groupNumber)}.`);
     }).catch((error: unknown) => {
       toast.error(getErrorMessage(error, 'Failed to join group.'));
@@ -122,6 +121,7 @@ export default function Groups() {
     await runAction('cancel-join-request', async () => {
       const result = await studentCancelGroupJoinRequest(data.my_join_request!.id);
       setData(result.state);
+      void sendNtfyNotification({ title: 'Group Join Request Cancelled', message: `ERP ${data.student_erp} cancelled their group request.`, tags: ['groups', 'student'] });
       toast.success('Group request cancelled.');
     }).catch((error: unknown) => {
       toast.error(getErrorMessage(error, 'Failed to cancel group request.'));
@@ -133,6 +133,7 @@ export default function Groups() {
       const result = await respondToGroupJoinRequest(requestId, accept);
       if ('student_email' in result.state) setData(result.state);
       else await refetch();
+      void sendNtfyNotification({ title: accept ? 'Group Request Approved' : 'Group Request Declined', message: `Group request ${accept ? 'approved' : 'declined'} for request ${requestId}.`, tags: ['groups', 'student'] });
       toast.success(accept ? 'Join request approved.' : 'Join request declined.');
     }).catch((error: unknown) => {
       toast.error(getErrorMessage(error, 'Failed to respond to group request.'));
@@ -143,16 +144,36 @@ export default function Groups() {
     await runAction(`remove-${studentErp}`, async () => {
       const result = await studentRemoveGroupMember(group.group_number, studentErp);
       setData(result.state);
+      void sendNtfyNotification({ title: 'Group Member Removed', message: `ERP ${data.student_erp} removed ERP ${studentErp} from Group ${group.group_number}.`, tags: ['groups', 'student'] });
       toast.success(`Removed ${studentErp} from ${getGroupDisplayName(group.group_number)}.`);
     }).catch((error: unknown) => {
       toast.error(getErrorMessage(error, 'Failed to remove member.'));
     });
   };
 
+  const handleAddMember = async (group: GroupSummary, studentErp: string) => {
+    await runAction(`add-${studentErp}`, async () => {
+      const result = await studentAddGroupMember(group.group_number, studentErp);
+      setData(result.state);
+      setMemberSearch('');
+      void sendNtfyNotification({ title: 'Group Member Added', message: `ERP ${data.student_erp} added ERP ${studentErp} to Group ${group.group_number}.`, tags: ['groups', 'student'] });
+      toast.success(`Added ${studentErp} to ${getGroupDisplayName(group.group_number)}.`);
+    }).catch((error: unknown) => toast.error(getErrorMessage(error, 'Failed to add member.')));
+  };
+
+  const ungroupedMembers = useMemo(() => {
+    const query = memberSearch.trim().toLowerCase();
+    return data.roster
+      .filter((entry) => entry.group_number === null)
+      .filter((entry) => !query || `${entry.erp} ${entry.student_name} ${entry.class_no}`.toLowerCase().includes(query))
+      .slice(0, 8);
+  }, [data.roster, memberSearch]);
+
   const handleLeaveGroup = async () => {
     await runAction('leave-group', async () => {
       const result = await studentLeaveGroup();
       setData(result.state);
+      void sendNtfyNotification({ title: 'Student Left Group', message: `ERP ${data.student_erp} left their group.`, tags: ['groups', 'student'] });
       toast.success('You left your group.');
     }).catch((error: unknown) => {
       toast.error(getErrorMessage(error, 'Failed to leave group.'));
@@ -193,6 +214,11 @@ export default function Groups() {
             <CardTitle>{joinableGroups.length}</CardTitle>
           </CardHeader>
         </Card>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-4 py-3 text-sm" role="status">
+        <span className="font-medium">Group formation: {formationLocked ? 'Locked' : 'Open'}</span>
+        <span className="text-muted-foreground">{data.group_formation_deadline ? `${formationLocked ? 'Closed' : 'Closes'} ${formatDate(data.group_formation_deadline, 'PPP p')}` : 'No deadline set'}</span>
       </div>
 
       {currentGroup ? (
@@ -290,6 +316,28 @@ export default function Groups() {
 
             {isCreator && (
               <div className="space-y-4">
+                {currentGroup.member_count < MEMBER_LIMIT && !currentGroup.is_locked ? (
+                  <div className="rounded-md border border-primary/20 bg-primary/5 p-4 space-y-3">
+                    <div>
+                      <h3 className="font-semibold">Add an ungrouped student</h3>
+                      <p className="text-sm text-muted-foreground">Search by ERP or name. Students already in another group cannot be added here.</p>
+                    </div>
+                    <Input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Search ungrouped students" />
+                    {memberSearch && ungroupedMembers.length > 0 ? (
+                      <div className="space-y-2">
+                        {ungroupedMembers.map((entry) => (
+                          <div key={entry.erp} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 text-sm">
+                            <span>{entry.student_name} · ERP {entry.erp} · Class {entry.class_no}</span>
+                            <Button size="sm" onClick={() => void handleAddMember(currentGroup, entry.erp)} disabled={busyAction === `add-${entry.erp}`}>
+                              {busyAction === `add-${entry.erp}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                              Add
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : memberSearch ? <p className="text-sm text-muted-foreground">No ungrouped student matches.</p> : null}
+                  </div>
+                ) : null}
                 <div className="space-y-2">
                   <h3 className="font-semibold">Join Requests</h3>
                   <p className="text-sm text-muted-foreground">
@@ -353,19 +401,12 @@ export default function Groups() {
           <CardHeader>
             <CardTitle>Create or Join a Group</CardTitle>
             <CardDescription>
-              Groups are course-wide numbered teams. You can create a new group number or join an existing open group while you are still ungrouped.
+              Groups are course-wide numbered teams. Your group number is assigned automatically; you can also request to join an existing open group.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-3 md:grid-cols-[220px_auto]">
-              <Input
-                type="number"
-                min={1}
-                value={createGroupNumber}
-                onChange={(event) => setCreateGroupNumber(event.target.value)}
-                placeholder="Group number"
-              />
-              <Button onClick={handleCreateGroup} disabled={busyAction === 'create-group'}>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={handleCreateGroup} disabled={formationLocked || busyAction === 'create-group'}>
                 {busyAction === 'create-group' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
                 Create Group
               </Button>

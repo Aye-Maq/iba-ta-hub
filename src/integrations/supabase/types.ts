@@ -17,6 +17,7 @@ export type Database = {
       app_settings: {
         Row: {
           created_at: string
+          group_formation_deadline: string | null
           id: string
           roster_verification_enabled: boolean
           show_test_student_in_ta: boolean
@@ -26,6 +27,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          group_formation_deadline?: string | null
           id?: string
           roster_verification_enabled?: boolean
           show_test_student_in_ta?: boolean
@@ -35,6 +37,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          group_formation_deadline?: string | null
           id?: string
           roster_verification_enabled?: boolean
           show_test_student_in_ta?: boolean
@@ -629,6 +632,7 @@ export type Database = {
         Returns: Json
       }
       get_public_attendance_board: { Args: never; Returns: Json }
+      get_group_formation_status: { Args: never; Returns: Json }
       get_student_groups_state: { Args: never; Returns: Json }
       get_student_attendance: { Args: { student_erp: string }; Returns: Json }
       is_ta: { Args: { user_email: string }; Returns: boolean }
@@ -642,7 +646,7 @@ export type Database = {
         Returns: Json
       }
       student_cancel_group_join_request: { Args: { p_request_id: string }; Returns: Json }
-      student_create_group: { Args: { p_group_number: number }; Returns: Json }
+      student_create_group: { Args: never; Returns: Json }
       student_join_group: { Args: { p_group_number: number }; Returns: Json }
       student_request_group_join: { Args: { p_group_number: number }; Returns: Json }
       student_leave_group: { Args: never; Returns: Json }
@@ -670,6 +674,11 @@ export type Database = {
         Args: { p_group_number?: number; p_student_erp: string }
         Returns: Json
       }
+      ta_rename_group: {
+        Args: { p_new_group_number: number; p_old_group_number: number }
+        Returns: Json
+      }
+      ta_normalize_group_numbers: { Args: never; Returns: Json }
       respond_to_group_join_request: { Args: { p_accept: boolean; p_request_id: string }; Returns: Json }
       verify_ta_setup: {
         Args: { check_email: string; check_password: string }

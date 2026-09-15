@@ -18,6 +18,8 @@ import type {
   StudentGroupState,
 } from './types';
 
+let lastKnownGroupFormationDeadline: string | null = null;
+
 const parseGroupMember = (value: unknown): GroupMember | null => {
   if (!isObjectRecord(value) || !isString(value.erp) || !isString(value.student_name) || !isString(value.class_no)) {
     return null;
@@ -107,6 +109,7 @@ const parseStudentGroupState = (value: unknown): StudentGroupState => {
     incoming_join_requests: Array.isArray(value.incoming_join_requests)
       ? value.incoming_join_requests.map(parseJoinRequest).filter((request): request is GroupJoinRequest => request !== null)
       : [],
+    group_formation_deadline: isString(value.group_formation_deadline) ? value.group_formation_deadline : lastKnownGroupFormationDeadline,
   };
 };
 
@@ -126,6 +129,7 @@ const parseGroupAdminState = (value: unknown): GroupAdminState => {
     join_requests: Array.isArray(value.join_requests)
       ? value.join_requests.map(parseJoinRequest).filter((request): request is GroupJoinRequest => request !== null)
       : [],
+    group_formation_deadline: isString(value.group_formation_deadline) ? value.group_formation_deadline : lastKnownGroupFormationDeadline,
   };
 };
 
@@ -184,21 +188,33 @@ const parseGroupDeadlineUpdateResult = (value: unknown): GroupDeadlineUpdateResu
 };
 
 export const getStudentGroupsState = async (): Promise<StudentGroupState> => {
-  const { data, error } = await supabase.rpc('get_student_groups_state');
+  const [{ data, error }, statusResponse] = await Promise.all([
+    supabase.rpc('get_student_groups_state'),
+    supabase.rpc('get_group_formation_status'),
+  ]);
   if (error) {
     throw toAppError(error, 'student_groups_state_fetch_failed');
   }
 
-  return parseStudentGroupState(data);
+  const parsed = parseStudentGroupState(data);
+  const status = isObjectRecord(statusResponse.data) && isString(statusResponse.data.deadline) ? statusResponse.data.deadline : null;
+  lastKnownGroupFormationDeadline = status;
+  return { ...parsed, group_formation_deadline: status };
 };
 
 export const listGroupAdminState = async (): Promise<GroupAdminState> => {
-  const { data, error } = await supabase.rpc('list_group_admin_state');
+  const [{ data, error }, statusResponse] = await Promise.all([
+    supabase.rpc('list_group_admin_state'),
+    supabase.rpc('get_group_formation_status'),
+  ]);
   if (error) {
     throw toAppError(error, 'group_admin_state_fetch_failed');
   }
 
-  return parseGroupAdminState(data);
+  const parsed = parseGroupAdminState(data);
+  const status = isObjectRecord(statusResponse.data) && isString(statusResponse.data.deadline) ? statusResponse.data.deadline : null;
+  lastKnownGroupFormationDeadline = status;
+  return { ...parsed, group_formation_deadline: status };
 };
 
 const makeStudentMutationResult = (value: unknown): GroupMutationResult<StudentGroupState> => ({
@@ -213,13 +229,31 @@ const makeAdminMutationResult = (value: unknown): GroupMutationResult<GroupAdmin
   data: isObjectRecord(value) ? (value as Json) : undefined,
 });
 
-export const studentCreateGroup = async (groupNumber: number): Promise<GroupMutationResult<StudentGroupState>> => {
-  const { data, error } = await supabase.rpc('student_create_group', { p_group_number: groupNumber });
+export const studentCreateGroup = async (): Promise<GroupMutationResult<StudentGroupState>> => {
+  const { data, error } = await supabase.rpc('student_create_group');
   if (error) {
     throw toAppError(error, 'student_group_create_failed');
   }
 
   return makeStudentMutationResult(data);
+};
+
+export const taRenameGroup = async (
+  oldGroupNumber: number,
+  newGroupNumber: number,
+): Promise<GroupMutationResult<GroupAdminState>> => {
+  const { data, error } = await supabase.rpc('ta_rename_group', {
+    p_old_group_number: oldGroupNumber,
+    p_new_group_number: newGroupNumber,
+  });
+  if (error) throw toAppError(error, 'ta_rename_group_failed');
+  return makeAdminMutationResult(data);
+};
+
+export const taNormalizeGroupNumbers = async (): Promise<GroupMutationResult<GroupAdminState>> => {
+  const { data, error } = await supabase.rpc('ta_normalize_group_numbers');
+  if (error) throw toAppError(error, 'ta_normalize_group_numbers_failed');
+  return makeAdminMutationResult(data);
 };
 
 export const studentJoinGroup = async (groupNumber: number): Promise<GroupMutationResult<StudentGroupState>> => {

@@ -25,6 +25,8 @@ import {
   taSetGroupEditDeadlineAll,
   taSetGroupEditDeadlineSelected,
   taSetStudentGroup,
+  taRenameGroup,
+  taNormalizeGroupNumbers,
   respondToGroupJoinRequest,
   buildGroupsCsv,
   useGroupAdminState,
@@ -138,6 +140,7 @@ export default function GroupsManagement({
   const [pendingRecomputeAll, setPendingRecomputeAll] = useState(Boolean(persistedState.pendingRecomputeAll));
   const [pendingClearRoster, setPendingClearRoster] = useState(Boolean(persistedState.pendingClearRoster));
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState<GroupSummary | null>(null);
+  const [pendingNormalizeGroups, setPendingNormalizeGroups] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [claims, setClaims] = useState<LateDayClaim[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -147,6 +150,7 @@ export default function GroupsManagement({
   const [selectedCreateStudentErps, setSelectedCreateStudentErps] = useState<string[]>([]);
   const [createPocErp, setCreatePocErp] = useState('');
   const [pocDrafts, setPocDrafts] = useState<Record<string, string>>({});
+  const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [deadlineDialogScope, setDeadlineDialogScope] = useState<DeadlineScope>(null);
   const [deadlineInput, setDeadlineInput] = useState(defaultDeadlineValue);
   const lastHandledAgentCommandTokenRef = useRef<number | null>(null);
@@ -504,6 +508,51 @@ export default function GroupsManagement({
     });
   };
 
+  const handleAddToGroup = async (studentErp: string, groupNumber: number) => {
+    await runAction(`assign-${studentErp}`, async () => {
+      const result = await taSetStudentGroup(studentErp, groupNumber);
+      setData(result.state);
+      await fetchGroupLateDays();
+      toast.success(`Added ${studentErp} to Group ${groupNumber}.`);
+    }).catch((error: unknown) => toast.error(getErrorMessage(error, 'Failed to add student to group.')));
+  };
+
+  const handleMoveMember = async (studentErp: string, groupNumber: number) => {
+    await runAction(`assign-${studentErp}`, async () => {
+      const result = await taSetStudentGroup(studentErp, groupNumber);
+      setData(result.state);
+      await fetchGroupLateDays();
+      toast.success(`Moved ${studentErp} to Group ${groupNumber}.`);
+    }).catch((error: unknown) => toast.error(getErrorMessage(error, 'Failed to move student.')));
+  };
+
+  const handleRenameGroup = async (groupNumber: number, groupId: string) => {
+    const nextNumber = Number(renameDrafts[groupId] ?? '');
+    if (!Number.isInteger(nextNumber) || nextNumber < 1) {
+      toast.error('Enter a valid positive group number.');
+      return;
+    }
+    await runAction(`rename-group-${groupId}`, async () => {
+      const result = await taRenameGroup(groupNumber, nextNumber);
+      setData(result.state);
+      setRenameDrafts((previous) => ({ ...previous, [groupId]: '' }));
+      toast.success(`Renamed Group ${groupNumber} to Group ${nextNumber}.`);
+    }).catch((error: unknown) => toast.error(getErrorMessage(error, 'Failed to rename group.')));
+  };
+
+  const handleNormalizeGroups = async () => {
+    await runAction('normalize-groups', async () => {
+      const result = await taNormalizeGroupNumbers();
+      setData(result.state);
+      toast.success('Group numbers normalized consecutively.');
+    }).catch((error: unknown) => toast.error(getErrorMessage(error, 'Failed to normalize group numbers.')));
+  };
+
+  const normalizedGroupPreview = useMemo(
+    () => [...data.groups].sort((a, b) => a.group_number - b.group_number || a.id.localeCompare(b.id)).map((group, index) => ({ ...group, next: index + 1 })).filter((group) => group.group_number !== group.next),
+    [data.groups],
+  );
+
   const handleRespondToRequest = async (requestId: string, accept: boolean) => {
     await runAction(`${accept ? 'accept' : 'decline'}-request-${requestId}`, async () => {
       const result = await respondToGroupJoinRequest(requestId, accept);
@@ -781,6 +830,13 @@ export default function GroupsManagement({
                 <CardDescription>
                   Search groups, select them for bulk actions, and create new groups without using the roster list as a shared target.
                 </CardDescription>
+                <Badge variant={data.group_formation_deadline && new Date(data.group_formation_deadline) < new Date() ? 'secondary' : 'default'}>
+                  {data.group_formation_deadline && new Date(data.group_formation_deadline) < new Date()
+                    ? 'Student group formation locked'
+                    : data.group_formation_deadline
+                      ? `Student formation open until ${formatDate(data.group_formation_deadline, 'PPP p')}`
+                      : 'Student group formation open'}
+                </Badge>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" title="Create group" onClick={openCreateDialog}>
@@ -861,6 +917,16 @@ export default function GroupsManagement({
                 <CalendarClock className="mr-2 h-4 w-4" />
                 Set Deadline For Selected
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPendingNormalizeGroups(true)}
+                disabled={busyAction === 'normalize-groups' || data.groups.length === 0}
+                title="Fill group numbers consecutively while preserving memberships"
+              >
+                {busyAction === 'normalize-groups' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Normalize Numbers
+              </Button>
             </div>
 
             {groupCards.length === 0 ? (
@@ -940,6 +1006,27 @@ export default function GroupsManagement({
                           {busyAction === `set-poc-${group.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                           Save POC
                         </Button>
+                        <div className="min-w-[180px] flex-1">
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Rename Group</div>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={renameDrafts[group.id] ?? ''}
+                              onChange={(event) => setRenameDrafts((previous) => ({ ...previous, [group.id]: event.target.value }))}
+                              placeholder={`Group ${group.group_number}`}
+                              aria-label={`New number for Group ${group.group_number}`}
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleRenameGroup(group.group_number, group.id)}
+                              disabled={busyAction === `rename-group-${group.id}`}
+                            >
+                              Rename
+                            </Button>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -947,8 +1034,48 @@ export default function GroupsManagement({
                           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Members</div>
                           <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                             {orderGroupMembers(group).map((member) => (
-                              <div key={member.erp}>{member.student_name} ({member.erp})</div>
+                              <div key={member.erp} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1">
+                                <span>{member.student_name} ({member.erp})</span>
+                                <div className="flex items-center gap-1">
+                                  <Select onValueChange={(value) => void handleMoveMember(member.erp, Number(value))}>
+                                    <SelectTrigger className="h-7 w-[118px] text-xs" aria-label={`Move ${member.student_name}`}>
+                                      <SelectValue placeholder="Move to…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {data.groups.filter((candidate) => candidate.group_number !== group.group_number).map((candidate) => (
+                                        <SelectItem key={candidate.id} value={String(candidate.group_number)}>
+                                          Group {candidate.group_number}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-destructive hover:text-destructive"
+                                    onClick={() => void handleRemove(member.erp)}
+                                    disabled={busyAction === `remove-${member.erp}`}
+                                    aria-label={`Remove ${member.student_name} from Group ${group.group_number}`}
+                                  >
+                                    {busyAction === `remove-${member.erp}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                                  </Button>
+                                </div>
+                              </div>
                             ))}
+                            {group.member_count < 5 && unassignedCandidates.length > 0 ? (
+                              <div className="mt-3 flex items-center gap-2">
+                                <Select onValueChange={(value) => void handleAddToGroup(value, group.group_number)}>
+                                  <SelectTrigger aria-label={`Add unassigned student to Group ${group.group_number}`}>
+                                    <SelectValue placeholder="Add unassigned student" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {unassignedCandidates.map((entry) => (
+                                      <SelectItem key={entry.erp} value={entry.erp}>{entry.student_name} · {entry.erp}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                         <div>
@@ -1266,6 +1393,26 @@ export default function GroupsManagement({
             >
               {pendingDeleteGroup !== null && busyAction === `delete-group-${pendingDeleteGroup.group_number}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               Delete Group
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingNormalizeGroups} onOpenChange={(open) => !open && setPendingNormalizeGroups(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Normalize group numbers?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This keeps memberships and group IDs unchanged, but renumbers groups consecutively by their current number.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-56 space-y-1 overflow-auto rounded-md border p-3 text-sm">
+            {normalizedGroupPreview.length === 0 ? <p className="text-muted-foreground">Numbers are already consecutive.</p> : normalizedGroupPreview.map((group) => <div key={group.id}>Group {group.group_number} → Group {group.next} ({group.member_count} members)</div>)}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setPendingNormalizeGroups(false); void handleNormalizeGroups(); }} disabled={normalizedGroupPreview.length === 0 || busyAction === 'normalize-groups'}>
+              {busyAction === 'normalize-groups' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Apply Numbering
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

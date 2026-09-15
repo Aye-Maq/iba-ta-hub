@@ -12,6 +12,7 @@ const EMPTY_STUDENT_STATE: StudentGroupState = {
   roster: [],
   my_join_request: null,
   incoming_join_requests: [],
+  group_formation_deadline: null,
 };
 
 const EMPTY_ADMIN_STATE: GroupAdminState = {
@@ -19,6 +20,7 @@ const EMPTY_ADMIN_STATE: GroupAdminState = {
   groups: [],
   roster: [],
   join_requests: [],
+  group_formation_deadline: null,
 };
 
 export const useStudentGroupsState = (enabled: boolean) => {

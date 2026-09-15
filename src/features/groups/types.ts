@@ -49,6 +49,7 @@ export interface StudentGroupState {
   roster: GroupRosterEntry[];
   my_join_request: GroupJoinRequest | null;
   incoming_join_requests: GroupJoinRequest[];
+  group_formation_deadline: string | null;
 }
 
 export interface GroupAdminState {
@@ -56,6 +57,7 @@ export interface GroupAdminState {
   groups: GroupSummary[];
   roster: GroupRosterEntry[];
   join_requests: GroupJoinRequest[];
+  group_formation_deadline: string | null;
 }
 
 export interface GroupRecomputeResult {
