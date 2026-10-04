@@ -63,7 +63,17 @@ export interface ZoomTimingSummary {
   requiredMinutes: number;
 }
 
-const ERP_NAME_PATTERN = /^(\d{5})_(.+)$/;
+/** A student can be present when the attendance shortfall is strictly less than one minute. */
+export const ATTENDANCE_GRACE_MINUTES = 1;
+
+export const meetsZoomAttendanceThreshold = (attendedMinutes: number, requiredMinutes: number) => {
+  if (!Number.isFinite(attendedMinutes) || !Number.isFinite(requiredMinutes)) return false;
+  const shortfall = requiredMinutes - attendedMinutes;
+  return shortfall < ATTENDANCE_GRACE_MINUTES;
+};
+
+const ERP_NAME_PREFIX_PATTERN = /^(\d{5})\s*_\s*(.+)$/;
+const ERP_NAME_SUFFIX_PATTERN = /^(.+?)\s*_\s*(\d{5})(?:\s+\([^)]*\))?$/;
 const ERP_PREFIX_PATTERN = /^(\d{5})(?:_|\s|$)/;
 
 const text = (value: unknown) => (value == null ? '' : String(value).trim());
@@ -270,26 +280,26 @@ const mergedDuration = (participants: ZoomParticipantRecord[], bounds: { start: 
   return total / 60_000;
 };
 
-const extractIdentity = (name: string) => {
+const extractIdentity = (name: string): ZoomDisplayIdentity => {
   const trimmed = name.trim();
-  const validMatch = trimmed.match(ERP_NAME_PATTERN);
-  const prefixMatch = trimmed.match(ERP_PREFIX_PATTERN);
+  const validPrefixMatch = trimmed.match(ERP_NAME_PREFIX_PATTERN);
+  const suffixMatch = trimmed.match(ERP_NAME_SUFFIX_PATTERN);
+  const erpPrefixMatch = trimmed.match(ERP_PREFIX_PATTERN);
+  const validIdentity = validPrefixMatch
+    ? { erp: validPrefixMatch[1], studentName: validPrefixMatch[2].trim() }
+    : suffixMatch
+      ? { erp: suffixMatch[2], studentName: suffixMatch[1].trim() }
+      : null;
   return {
-    erp: validMatch?.[1] ?? prefixMatch?.[1] ?? '',
-    isValid: Boolean(validMatch?.[2]?.trim()),
+    erp: validIdentity?.erp ?? erpPrefixMatch?.[1] ?? '',
+    studentName: validIdentity?.studentName ?? '',
+    isValid: Boolean(validIdentity?.studentName),
   };
 };
 
 /** Parse a Zoom display name without treating uncertain names as resolved. */
 export const parseZoomDisplayIdentity = (name: string): ZoomDisplayIdentity => {
-  const trimmed = text(name);
-  const validMatch = trimmed.match(ERP_NAME_PATTERN);
-  const prefixMatch = trimmed.match(ERP_PREFIX_PATTERN);
-  return {
-    erp: validMatch?.[1] ?? prefixMatch?.[1] ?? '',
-    studentName: validMatch?.[2]?.trim() ?? '',
-    isValid: Boolean(validMatch?.[2]?.trim()),
-  };
+  return extractIdentity(text(name));
 };
 
 const normalizedName = (value: string) => normalizeName(value);
@@ -384,14 +394,18 @@ export const processZoomAttendance = (
     const identity = extractIdentity(participant.name);
     const assignment = options.participantAssignments?.[participantKey(participant)];
     const assignedStudent = assignment ? rosterByErp.get(text(assignment)) : undefined;
-    const byErp = identity.erp ? rosterByErp.get(identity.erp) : undefined;
+    const byErp = identity.isValid && identity.erp ? rosterByErp.get(identity.erp) : undefined;
     const exactNameMatches = identity.erp ? [] : rosterByName.get(normalizeName(participant.name)) ?? [];
     const student = assignedStudent ?? byErp ?? (exactNameMatches.length === 1 ? exactNameMatches[0] : undefined);
 
     if (!student) {
       const key = participantKey(participant);
       const existing = unresolved.get(key);
-      const reason = exactNameMatches.length > 1 ? 'Ambiguous roster name' : identity.erp ? 'ERP not found in roster' : 'Could not identify student';
+      const reason = exactNameMatches.length > 1
+        ? 'Ambiguous roster name'
+        : identity.erp && identity.isValid
+          ? 'ERP not found in roster'
+          : 'Could not identify student';
       if (existing) existing.participants.push(participant);
       else unresolved.set(key, { participant, participants: [participant], reason });
       return;
@@ -422,7 +436,7 @@ export const processZoomAttendance = (
     const studentParticipants = group?.participants ?? [];
     const attendedMinutes = round(mergedDuration(studentParticipants, bounds));
     const validName = studentParticipants.some((participant) => isValidZoomDisplayName(participant.name, student.erp));
-    const present = attendedMinutes >= requiredMinutes;
+    const present = meetsZoomAttendanceThreshold(attendedMinutes, requiredMinutes);
     const status = present ? 'present' : 'absent';
     const namingPenalty = present && !validName;
     const zoomNames = Array.from(new Set(studentParticipants.map((participant) => participant.name))).join(' | ');

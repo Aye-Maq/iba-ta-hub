@@ -37,6 +37,7 @@ import { listSessions, type SessionRow } from '@/features/sessions';
 import {
   getZoomResolutionSuggestions,
   getZoomTimingSummary,
+  meetsZoomAttendanceThreshold,
   parseZoomDisplayIdentity,
   processZoomCsv,
   validateZoomQuickAdd,
@@ -1274,7 +1275,7 @@ export default function TAZoomProcess({
       const parsed = parseZoomDisplayIdentity(issue.name);
       const attendedMinutes = Number(issue.attendedMinutes);
       const meetsCutoff = Number.isFinite(attendedMinutes) && data?.effective_threshold_minutes != null
-        ? attendedMinutes >= data.effective_threshold_minutes
+        ? meetsZoomAttendanceThreshold(attendedMinutes, data.effective_threshold_minutes)
         : false;
       const reliableERP = /^\d{5}$/.test(issue.erpCandidate || parsed.erp) && Boolean(parsed.studentName) && !rosterErpSet.has(issue.erpCandidate || parsed.erp);
       const suggestions = getZoomResolutionSuggestions(

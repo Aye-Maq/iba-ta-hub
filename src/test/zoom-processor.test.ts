@@ -3,6 +3,7 @@ import {
   isValidZoomDisplayName,
   getZoomResolutionSuggestions,
   getZoomTimingSummary,
+  meetsZoomAttendanceThreshold,
   parseZoomDisplayIdentity,
   parseZoomCsv,
   processZoomAttendance,
@@ -65,6 +66,25 @@ describe('zoom processor', () => {
     expect(result.effective_threshold_minutes).toBe(20);
     expect(result.attendance_rows[0].Status).toBe('present');
     expect(result.attendance_rows[1].Status).toBe('present');
+  });
+
+  it('applies a strict one-minute attendance grace without changing the required minutes', () => {
+    expect(meetsZoomAttendanceThreshold(47.01, 48)).toBe(true);
+    expect(meetsZoomAttendanceThreshold(47, 48)).toBe(false);
+
+    const justUnderGrace = processZoomAttendance(
+      [participant('12345_Ali', '08:30:00 AM', '09:17:01 AM')],
+      roster,
+      { sessionDate: '2026-09-03', startTime: '08:30', endTime: '09:30' },
+    );
+    const exactlyOneShort = processZoomAttendance(
+      [participant('12345_Ali', '08:30:00 AM', '09:17:00 AM')],
+      roster,
+      { sessionDate: '2026-09-03', startTime: '08:30', endTime: '09:30' },
+    );
+
+    expect(justUnderGrace.attendance_rows[0].Status).toBe('present');
+    expect(exactlyOneShort.attendance_rows[0].Status).toBe('absent');
   });
 
   it('uses a manual duration to ignore overtime after the official class', () => {
@@ -166,6 +186,50 @@ describe('zoom processor', () => {
     expect(isValidZoomDisplayName('12345_something completely different', '12345')).toBe(true);
     expect(isValidZoomDisplayName('12345', '12345')).toBe(false);
     expect(isValidZoomDisplayName('12345_Ali', '12345')).toBe(true);
+  });
+
+  it('accepts prefix and suffix ERP formats with underscore spacing while preserving the raw display name', () => {
+    const names = [
+      '34567_Noor_Ahmed',
+      'Noor_Ahmed_34567',
+      'Noor_Ahmed_34567 (Noor Ahmed 34567)',
+      '34567 _Noor_Ahmed',
+      '34567 _Noor _Ahmed',
+    ];
+
+    names.forEach((name) => {
+      expect(parseZoomDisplayIdentity(name)).toMatchObject({ erp: '34567', isValid: true });
+      expect(isValidZoomDisplayName(name, '34567')).toBe(true);
+    });
+
+    const result = processZoomAttendance(
+      [participant('Noor_Ahmed_34567', '08:30:00 AM', '09:30:00 AM')],
+      roster,
+      { sessionDate: '2026-09-03', startTime: '08:30', endTime: '09:30' },
+    );
+    expect(result.attendance_rows[2]['Match Method']).toBe('ERP');
+    expect(result.attendance_rows[2]['Name Penalty']).toBe(0);
+    expect(result.attendance_rows[2]['Zoom Name']).toBe('Noor_Ahmed_34567');
+  });
+
+  it('accepts a suffix ERP followed by Zoom original-name metadata', () => {
+    const name = 'Okasha_Ali_28786 (Okasha Ali 28786)';
+    expect(parseZoomDisplayIdentity(name)).toEqual({
+      erp: '28786',
+      studentName: 'Okasha_Ali',
+      isValid: true,
+    });
+    expect(isValidZoomDisplayName(name, '28786')).toBe(true);
+  });
+
+  it('does not auto-assign a bare ERP without a nonempty display name', () => {
+    const result = processZoomAttendance(
+      [participant('34567', '08:30:00 AM', '09:30:00 AM')],
+      roster,
+      { sessionDate: '2026-09-03', startTime: '08:30', endTime: '09:30' },
+    );
+    expect(result.issues_rows[0].Reason).toBe('Could not identify student');
+    expect(result.attendance_rows[2]['Match Method']).toBe('No match');
   });
 
   it('ranks exact ERP suggestions before normalized-name matches and supports search', () => {
